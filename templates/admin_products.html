@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}상품 관리{% endblock %}
+{% block content %}
+<h2>📋 등록된 전체 상품 목록</h2>
+
+<table border="1">
+  <tr>
+    <th>상품 UUID</th>
+    <th>상품명</th>
+    <th>가격</th>
+    <th>판매자</th>
+    <th>차단 여부</th>
+    <th>기능</th>
+  </tr>
+  {% for p in products %}
+  <tr>
+    <td>{{ p.uuid }}</td>
+    <td>{{ p.title }}</td>
+    <td>{{ p.price }}</td>
+    <td>{{ p.seller }}</td>
+    <td>{{ '차단됨' if p.is_blocked else '정상' }}</td>
+    <td>
+      {% if p.is_blocked %}
+        <a href="{{ url_for('unblock_product', product_uuid=p.uuid) }}">차단 해제</a> |
+      {% endif %}
+      <a href="{{ url_for('delete_product', product_uuid=p.uuid) }}" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% endblock %}

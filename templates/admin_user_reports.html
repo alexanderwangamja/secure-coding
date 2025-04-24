@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}신고 내역 - {{ user.id }}{% endblock %}
+{% block content %}
+<h2>🚨 사용자 신고 내역 - {{ user.id }}</h2>
+
+{% if reports %}
+  <table border="1">
+    <tr>
+      <th>신고 UUID</th>
+      <th>신고자 UUID</th>
+      <th>신고 사유</th>
+    </tr>
+    {% for r in reports %}
+    <tr>
+      <td>{{ r.uuid }}</td>
+      <td>{{ r.reporter_uuid }}</td>
+      <td>{{ r.reason }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <!-- ✅ 신고가 있을 때만 삭제 버튼 표시 -->
+  <form method="POST" action="{{ url_for('delete_user_reports', user_uuid=user_uuid) }}" onsubmit="return confirm('정말 이 사용자의 모든 신고 기록을 삭제하시겠습니까?');">
+    <button type="submit" style="background-color: crimson; color: white;">🗑 모든 신고 기록 삭제</button>
+  </form>
+{% else %}
+  <p>📭 이 사용자에 대한 신고가 없습니다.</p>
+{% endif %}
+
+<br>
+<a href="{{ url_for('admin_users') }}">⏪ 사용자 목록으로</a>
+{% endblock %}

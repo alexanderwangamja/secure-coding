@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}차단된 상품 목록{% endblock %}
+{% block content %}
+<h2>🚫 차단된 상품</h2>
+<a href="{{ url_for('admin_products') }}">⏪ 전체 상품 보기<br><br></a>
+
+<table border="1">
+  <tr>
+    <th>상품 UUID</th>
+    <th>상품명</th>
+    <th>가격</th>
+    <th>판매자</th>
+    <th>기능</th>
+  </tr>
+  {% for p in products %}
+  <tr>
+    <td>{{ p.uuid }}</td>
+    <td>{{ p.title }}</td>
+    <td>{{ p.price }}</td>
+    <td>{{ p.seller }}</td>
+    <td>
+      <a href="{{ url_for('unblock_product', product_uuid=p.uuid) }}">차단 해제</a> |
+      <a href="{{ url_for('delete_product', product_uuid=p.uuid) }}" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
+    </td>
+  </tr>
+  {% else %}
+  <tr>
+    <td colspan="5">✅ 현재 차단된 상품이 없습니다.</td>
+  </tr>
+  {% endfor %}
+</table>
+
+
+{% endblock %}

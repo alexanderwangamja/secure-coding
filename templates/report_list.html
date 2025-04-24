@@ -1,21 +1,47 @@
 {% extends "base.html" %}
-{% block title %}신고 내역 (전체){% endblock %}
+{% block title %}전체 신고 내역{% endblock %}
 {% block content %}
-<h2>📋 전체 신고 목록</h2>
-<table border="1">
-  <tr>
-    <th>신고자 ID</th>
-    <th>신고자명</th>
-    <th>신고 대상ID</th>
-    <th>신고 사유</th>
-  </tr>
-  {% for r in reports %}
-  <tr>
-    <td>{{ r.id }}</td>
-    <td>{{ r.reporter }}</td>
-    <td>{{ r.target_id }}</td>
-    <td>{{ r.reason }}</td>
-  </tr>
-  {% endfor %}
-</table>
+<h2>📊 전체 신고 내역</h2>
+
+<!-- 왼쪽 정렬된 전체 삭제 버튼 -->
+<div style="margin-bottom: 10px;">
+  <form method="POST"
+        action="{{ url_for('delete_all_reports') }}"
+        onsubmit="return confirm('⚠ 모든 신고를 삭제하시겠습니까?');"
+        style="display: inline;">
+    <button type="submit"
+            style="background-color: crimson; color: white; font-size: 0.85rem;
+                   padding: 4px 10px; border: none; border-radius: 5px; cursor: pointer;">
+      🧨 모든 신고 삭제
+    </button>
+  </form>
+</div>
+
+{% if reports %}
+  <table border="1">
+    <tr>
+      <th>신고자 아이디</th>
+      <th>신고 대상</th>
+      <th>신고 사유</th>
+      <th>관리</th>
+    </tr>
+    {% for r in reports %}
+    <tr>
+      <td>{{ r.reporter }}</td>
+      <td>{{ r.target_display }}</td>
+      <td>{{ r.reason }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('delete_report', report_uuid=r.uuid) }}"
+              style="display:inline;" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+          <button type="submit">🗑 삭제</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p>📭 현재 신고 내역이 없습니다.</p>
+{% endif %}
+
+<br>
 {% endblock %}

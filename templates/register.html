@@ -1,10 +1,39 @@
 {% extends "base.html" %}
 {% block title %}회원가입{% endblock %}
 {% block content %}
+<div style="text-align: right; margin-bottom: 20px;">
+  <a href="{{ url_for('login') }}" style="display: inline-block; padding: 8px 16px; background-color: #007AFF; color: white; text-decoration: none; border-radius: 5px;">🔑 로그인</a>
+</div>
 <h2>회원가입</h2>
-<form method="post">
-  사용자명: <input type="text" name="username" required><br>
-  비밀번호: <input type="password" name="password" required><br>
+<form method="post" onsubmit="return validateForm()">
+  <div style="margin-bottom: 15px;">
+    <label for="id">아이디:</label><br>
+    <input type="text" id="id" name="id" required>
+  </div>
+  
+  <div style="margin-bottom: 15px;">
+    <label for="password">비밀번호:</label><br>
+    <input type="password" id="password" name="password" required>
+  </div>
+  
+  <div style="margin-bottom: 15px;">
+    <label for="confirm_password">비밀번호 확인:</label><br>
+    <input type="password" id="confirm_password" name="confirm_password" required>
+  </div>
+  
   <button type="submit">회원가입</button>
 </form>
+
+<script>
+function validateForm() {
+    var password = document.getElementById("password").value;
+    var confirmPassword = document.getElementById("confirm_password").value;
+    
+    if (password != confirmPassword) {
+        alert("비밀번호가 일치하지 않습니다.");
+        return false;
+    }
+    return true;
+}
+</script>
 {% endblock %}

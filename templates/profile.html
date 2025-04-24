@@ -1,19 +1,108 @@
 {% extends "base.html" %}
 {% block title %}마이페이지{% endblock %}
 {% block content %}
-<h2>내 프로필</h2>
+<h2>ℹ️ 마이페이지</h2>
 
-<form method="post">
-  소개글:<br>
-  <textarea name="bio" rows="3" cols="50">{{ user.bio }}</textarea><br><br>
+<form method="post" onsubmit="return validatePasswordChange()">
+  <div style="margin-bottom: 20px;">
+    <label for="bio">소개글:</label><br>
+    <textarea id="bio" name="bio" rows="3" cols="50">{{ user.bio }}</textarea>
+  </div>
 
   <hr>
-  <strong>비밀번호 변경</strong><br>
-  현재 비밀번호: <input type="password" name="current_password"><br>
-  새 비밀번호: <input type="password" name="new_password"><br><br>
+  <div style="margin-top: 20px;">
+    <h3>비밀번호 변경</h3>
+    <div style="margin-bottom: 15px;">
+      <label for="current_password">기존 비밀번호:</label><br>
+      <input type="password" id="current_password" name="current_password">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+      <label for="new_password">새 비밀번호:</label><br>
+      <input type="password" id="new_password" name="new_password">
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+      <label for="confirm_new_password">새 비밀번호 확인:</label><br>
+      <input type="password" id="confirm_new_password" name="confirm_new_password">
+    </div>
+  </div>
 
-  <button type="submit">업데이트</button>
+  <button type="submit">변경</button>
 </form>
+
+<hr>
+<div style="margin-top: 30px;">
+  <h3 style="color: #dc3545;">계정 삭제</h3>
+  <p>계정을 삭제하면 모든 데이터가 영구적으로 제거됩니다.</p>
+  {% if session.user_id == 'admin' %}
+    <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
+      <p style="color: #721c24; font-weight: bold; margin: 0;">
+        ⚠️ 관리자 계정은 삭제할 수 없습니다.
+      </p>
+    </div>
+    <a href="#" style="display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; cursor: not-allowed; opacity: 0.65;">회원 탈퇴</a>
+  {% else %}
+    <a href="{{ url_for('delete_account') }}" style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px;">회원 탈퇴</a>
+  {% endif %}
+</div>
+
+<script>
+async function validatePasswordChange() {
+    var currentPassword = document.getElementById("current_password").value;
+    var newPassword = document.getElementById("new_password").value;
+    var confirmNewPassword = document.getElementById("confirm_new_password").value;
+    
+    // 비밀번호를 변경하려는 경우에만 검증
+    if (newPassword || confirmNewPassword || currentPassword) {
+        if (!currentPassword) {
+            alert("기존 비밀번호를 입력해주세요.");
+            return false;
+        }
+
+        // 기존 비밀번호 검증
+        try {
+            const response = await fetch("{{ url_for('verify_password') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    current_password: currentPassword
+                })
+            });
+            const result = await response.json();
+            
+            if (!result.valid) {
+                alert("기존 비밀번호가 일치하지 않습니다.");
+                return false;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert("비밀번호 확인 중 오류가 발생했습니다.");
+            return false;
+        }
+
+        if (!newPassword) {
+            alert("새 비밀번호를 입력해주세요.");
+            return false;
+        }
+        if (!confirmNewPassword) {
+            alert("새 비밀번호를 한번 더 입력해주세요.");
+            return false;
+        }
+        if (newPassword !== confirmNewPassword) {
+            alert("새 비밀번호가 일치하지 않습니다.");
+            return false;
+        }
+        if (currentPassword === newPassword) {
+            alert("새 비밀번호가 기존 비밀번호와 같습니다.");
+            return false;
+        }
+    }
+    return true;
+}
+</script>
 {% endblock %}
 
 

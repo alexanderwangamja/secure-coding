@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}전체 사용자 목록{% endblock %}
+{% block content %}
+<h2>👥 사용자 목록</h2>
+<table border="1">
+  <tr>
+    <th>UUID</th>
+    <th>아이디</th>
+    <th>소개글</th>
+    <th>상태</th>
+    <th>기능</th>
+  </tr>
+  {% for user in users %}
+  <tr>
+    <td>{{ user.uuid }}</td>
+    <td>{{ user.id }}</td>
+    <td>{{ user.bio or '' }}</td>
+    <td>{{ '비활성화' if user.is_suspended else '정상' }}</td>
+    <td>
+      <a href="{{ url_for('reset_password', user_uuid=user.uuid) }}">비밀번호 초기화</a> |
+      <a href="{{ url_for('edit_bio', user_uuid=user.uuid) }}">소개글 수정</a> |
+      <a href="{{ url_for('unsuspend_user', user_uuid=user.uuid) }}">휴면 해제</a> |
+      <a href="{{ url_for('view_user_reports', user_uuid=user.uuid) }}">신고내역</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

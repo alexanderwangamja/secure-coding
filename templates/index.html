@@ -1,6 +1,11 @@
 {% extends "base.html" %}
-{% block title %}환영합니다{% endblock %}
+{% block title %}My Market{% endblock %}
 {% block content %}
-<h1>My Market에 오신 것을 환영합니다</h1>
-<p><a href="{{ url_for('login') }}">로그인</a> 또는 <a href="{{ url_for('register') }}">회원가입</a> 해주세요.</p>
+<div style="text-align: center; padding: 40px 0;">
+  <h1>My Market에 오신 것을 환영합니다!</h1>
+  <div style="margin-top: 30px;">
+    <a href="{{ url_for('login') }}" style="display: inline-block; padding: 10px 20px; background-color: #007AFF; color: white; text-decoration: none; border-radius: 5px; margin: 0 10px;">🔑 로그인</a>
+    <a href="{{ url_for('register') }}" style="display: inline-block; padding: 10px 20px; background-color: #34C759; color: white; text-decoration: none; border-radius: 5px; margin: 0 10px;">✏️ 회원가입</a>
+  </div>
+</div>
 {% endblock %}

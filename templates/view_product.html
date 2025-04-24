@@ -1,26 +1,82 @@
 {% extends "base.html" %}
-{% block title %}상품 상세보기{% endblock %}
+{% block title %}{% if product %}{{ product.title }}{% else %}상품 정보{% endif %}{% endblock %}
+
 {% block content %}
-<h2>{{ product.title }}</h2>
+<div class="container mt-4">
+    {% if product and not product.is_blocked %}
+    <div class="card">
+        <div class="card-header bg-white">
+            <h2 class="mb-0">{{ product.title }}</h2>
+        </div>
+        {% if product.image %}
+        <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
+             class="card-img-top" alt="{{ product.title }}"
+             style="max-height: 500px; object-fit: contain; padding: 20px;">
+        {% endif %}
+        <div class="card-body">
+            <div class="card bg-light mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">상품 설명</h5>
+                    <p class="card-text" style="white-space: pre-wrap;">{{ product.description }}</p>
+                </div>
+            </div>
 
-{% if product.image %}
-  <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}" width="300"><br>
-{% endif %}
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <p class="mb-0">
+                        {% if product.is_free %}
+                            <span class="badge badge-success">무료나눔</span>
+                        {% else %}
+                            <strong>가격:</strong> {{ product.price|format_price }}원
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-right">
+                    <p class="mb-0">
+                        <strong>판매자:</strong> {{ seller.id }}
+                    </p>
+                </div>
+            </div>
+            
+            {% if session.user_uuid and session.user_uuid != product.seller_uuid %}
+                <form action="{{ url_for('start_chat', product_uuid=product.uuid) }}" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-primary btn-lg btn-block">
+                        채팅으로 거래하기
+                    </button>
+                </form>
+            {% endif %}
+            
+            {% if session.user_uuid == product.seller_uuid %}
+                <button class="btn btn-secondary btn-lg btn-block" disabled>내 상품입니다</button>
+            {% endif %}
+            
+            {% if not session.user_uuid %}
+                <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg btn-block">로그인하고 채팅하기</a>
+            {% endif %}
+        </div>
+    </div>
 
-<p>{{ product.description }}</p>
-<p>가격: {{ product.price }}원</p>
-<p>판매자: {{ seller.username if seller else '알 수 없음' }}</p>
-
-<!-- 기존 상품 정보 아래에 추가 -->
-<hr>
-<h4>문제가 있는 상품인가요?</h4>
-<form action="{{ url_for('report') }}" method="post">
-  <input type="hidden" name="target_id" value="{{ product.id }}">
-  <label for="reason">신고 사유:</label><br>
-  <textarea name="reason" name="reason" rows="4" cols="50" required></textarea><br><br>
-  <button type="submit">🔔 이 상품 신고하기</button>
-</form>
-
+    <!-- 신고하기 섹션 -->
+    <div class="card mt-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">문제가 있는 상품인가요?</h5>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('report') }}" method="post">
+                <input type="hidden" name="target_id" value="{{ product.uuid }}">
+                <input type="hidden" name="target_type" value="product">
+                <div class="form-group">
+                    <label for="reason"><strong>신고 사유:</strong></label>
+                    <textarea name="reason" id="reason" class="form-control" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-danger">
+                    🔔 이 상품 신고하기
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}
 
 

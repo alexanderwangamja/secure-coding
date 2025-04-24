@@ -1,53 +1,147 @@
 {% extends "base.html" %}
+
 {% block title %}대시보드{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+{% endblock %}
+
 {% block content %}
-<h2>대시보드</h2>
+<div class="container mt-4">
+    <h3>🔎 상품 검색</h3>
+    <form action="{{ url_for('dashboard') }}" method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="상품 검색..." value="{{ query }}">
+            <button type="submit" class="btn btn-primary">검색</button>
+        </div>
+    </form>
 
-<h3>🔎상품 검색</h3>
-<form method="GET" action="{{ url_for('dashboard') }}">
-  <input type="text" name="q" placeholder="상품명을 검색하세요" value="{{ request.args.get('q', '') }}">
-  <button type="submit">검색</button>
-</form>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-info">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
-
-<h3>🛍️등록된 상품</h3>
-<ul>
-  {% for product in products %}
-    <li>
-      <a href="{{ url_for('view_product', product_id=product.id) }}">{{ product.title }}</a>
-    </li>
-  {% endfor %}
-</ul>
-
-<p><a href="{{ url_for('new_product') }}">➕ 새 상품 등록</a></p>
-<p><a href="{{ url_for('my_products') }}">📦 내가 등록한 상품 보기</a></p>
-
-<h3>💬실시간 전체 채팅</h3>
-<div id="chat">
-  <ul id="messages"></ul>
-  <input id="chat_input" type="text" placeholder="메시지를 입력하세요">
-  <button onclick="sendMessage()">전송</button>
+    {% if products %}
+        {% if query %}
+            <h3>🛍️ 등록된 상품 (검색 결과 {{ products|length }}개)</h3>
+        {% else %}
+            <h3>🛍️ 등록된 상품 (전체 {{ total_count }}개)</h3>
+        {% endif %}
+        <div class="row">
+            {% for product in products %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body p-3">
+                        <a href="{{ url_for('view_product', product_uuid=product.uuid) }}" class="text-decoration-none">
+                            <h4 class="card-title mb-2 text-primary">{{ product.title }}</h4>
+                            <p class="card-text text-muted mb-0">
+                                <small>{{ product.price|format_price }}원</small>
+                            </p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <br><br>
+    <p>
+        <a href="{{ url_for('new_product') }}" class="btn btn-outline-primary w-100">➕ 새 상품 등록</a>
+    </p>
+    <p>
+        <a href="{{ url_for('my_products') }}" class="btn btn-outline-secondary w-100">📦 내가 등록한 상품 보기</a>
+    </p>
 </div>
 
-<script type="text/javascript">
-  var socket = io();
-  socket.on('connect', function() {
-    console.log("채팅 서버에 연결됨");
-  });
-  socket.on('message', function(data) {
-    var messages = document.getElementById('messages');
-    var item = document.createElement('li');
-    item.textContent = data.username + ": " + data.message;
-    messages.appendChild(item);
-    messages.scrollTop = messages.scrollHeight;
-  });
-  function sendMessage() {
-    var input = document.getElementById('chat_input');
-    var message = input.value;
-    if (message) {
-      socket.emit('send_message', { 'username': "{{ user.username }}", 'message': message });
-      input.value = "";
+<br>
+
+<h3>💬 실시간 전체 채팅</h3>
+<div id="chat" class="container">
+    <div id="messages" style="height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px;"></div>
+    <div class="input-group">
+        <input type="text" id="message-input" class="form-control" placeholder="메시지를 입력하세요..." autocomplete="off">
+        <div class="input-group-append">
+            <button type="button" class="btn btn-primary" onclick="sendMessage()">전송</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Socket.IO 연결 설정
+    const socket = io({
+        transports: ['websocket'],
+        upgrade: false
+    });
+
+    const messages = document.getElementById('messages');
+    const messageInput = document.getElementById('message-input');
+
+    // 연결 상태 확인
+    socket.on('connect', () => {
+        console.log('Connected to Socket.IO server');
+        // 전역 채팅방 입장
+        socket.emit('join_global');
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+    });
+
+    // 메시지 전송
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message) {
+            console.log('Sending global message:', message);
+            socket.emit('global_chat', {
+                message: message
+            });
+            messageInput.value = '';
+        }
     }
-  }
+
+    // 엔터 키로 메시지 전송
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // 메시지 수신
+    socket.on('global_chat_message', (data) => {
+        console.log('Received global message:', data);
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'mb-2';
+        
+        const isCurrentUser = data.sender_uuid === "{{ session.user_uuid }}";
+        messageDiv.style.textAlign = isCurrentUser ? 'right' : 'left';
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = `d-inline-block p-2 rounded ${isCurrentUser ? 'bg-primary text-white' : 'bg-light'}`;
+        messageContent.style.maxWidth = '80%';
+        messageContent.style.wordBreak = 'break-word';
+        
+        const senderSpan = document.createElement('small');
+        senderSpan.className = 'text-muted d-block';
+        senderSpan.textContent = isCurrentUser ? '나' : data.sender_id;
+        
+        const contentSpan = document.createElement('span');
+        contentSpan.textContent = data.message;
+        
+        const timeSpan = document.createElement('small');
+        timeSpan.className = 'text-muted d-block';
+        timeSpan.textContent = data.timestamp;
+        
+        messageContent.appendChild(senderSpan);
+        messageContent.appendChild(contentSpan);
+        messageContent.appendChild(timeSpan);
+        messageDiv.appendChild(messageContent);
+        
+        messages.appendChild(messageDiv);
+        messages.scrollTop = messages.scrollHeight;
+    });
 </script>
 {% endblock %}

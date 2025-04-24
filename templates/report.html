@@ -1,14 +1,118 @@
 {% extends "base.html" %}
-{% block title %}사용자 신고{% endblock %}
+{% block title %}불량 이용자 신고{% endblock %}
 {% block content %}
-<h2>🚨 사용자 신고</h2>
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-<form method="post">
-  신고 대상 사용자 ID: <input type="text" name="target_id" required><br><br>
-  신고 사유:<br>
-  <textarea name="reason" rows="4" cols="50" required></textarea><br><br>
-  <button type="submit">신고하기</button>
+<h2>🚨 불량 이용자 신고</h2>
+
+<form method="POST" action="{{ url_for('report') }}">
+  <div style="margin-bottom: 20px;">
+    <label for="target_id"><strong>신고할 불량 이용자 선택:</strong></label><br>
+    <select id="target_id" name="target_id" style="width: 100%;" required>
+      <option value="">이용자를 선택하세요</option>
+      {% for user in users %}
+        <option value="{{ user.id }}">{{ user.id }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <label for="reason"><strong>신고 사유:</strong></label><br>
+    <textarea id="reason" name="reason" rows="4" cols="50" required 
+              style="width: 100%; padding: 8px; margin-top: 5px;"
+              placeholder="구체적인 신고 사유를 입력해주세요."></textarea>
+  </div>
+
+  <button type="submit" style="background-color: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+    신고하기
+  </button>
 </form>
+
+<script>
+$(document).ready(function() {
+    $('#target_id').select2({
+        placeholder: "이용자를 검색하거나 선택하세요",
+        allowClear: true,
+        theme: "classic",
+        width: '100%',
+        dropdownParent: $('form')
+    });
+});
+</script>
+
+<style>
+.select2-container--classic .select2-selection--single {
+    height: 38px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.select2-container--classic .select2-selection--single .select2-selection__rendered {
+    padding: 0 8px;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    text-align: left;
+    justify-content: flex-start;
+}
+
+.select2-container--classic .select2-selection--single .select2-selection__arrow {
+    height: 100%;
+    width: 30px;
+    border-left: 1px solid #ced4da;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.select2-container--classic .select2-selection--single .select2-selection__placeholder {
+    color: #6c757d;
+}
+
+.select2-container--classic .select2-results__option {
+    padding: 8px;
+    text-align: left;
+}
+
+.select2-container--classic .select2-results__option--highlighted[aria-selected] {
+    background-color: #007bff;
+}
+
+.select2-container--classic.select2-container--open .select2-selection--single {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.select2-container--classic .select2-dropdown {
+    border-color: #80bdff;
+    box-shadow: 0 2px 5px rgba(0,0,0,.15);
+}
+
+.select2-container--classic .select2-search--dropdown {
+    padding: 8px;
+}
+
+.select2-container--classic .select2-search--dropdown .select2-search__field {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+.select2-container--classic .select2-selection__clear {
+    margin-right: 10px;
+}
+</style>
 {% endblock %}
-
-

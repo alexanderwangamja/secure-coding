@@ -7,8 +7,8 @@
   <ul>
     {% for product in products %}
       <li>
-        <a href="{{ url_for('view_product', product_id=product.id) }}">
-          {{ product.title }} - {{ product.price }}원
+        <a href="{{ url_for('view_product', product_uuid=product.uuid) }}">
+          {{ product.title }} - {{ product.price|format_price }}원
         </a>
         {% if product.image %}
           <br><img src="{{ url_for('static', filename='uploads/' ~ product.image) }}" width="150">

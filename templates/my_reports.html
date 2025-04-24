@@ -4,7 +4,7 @@
 <h2>📋 내가 신고한 목록</h2>
 <ul>
   {% for r in reports %}
-    <li>📌 대상 ID: {{ r.target_id }} | ✏️ 사유: {{ r.reason }}</li>
+    <li>📌 대상 UUID: {{ r.target_uuid }} | ✏️ 신고 사유: {{ r.reason }}</li>
   {% endfor %}
 </ul>
 {% endblock %}

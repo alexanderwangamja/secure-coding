@@ -1,13 +1,165 @@
 {% extends "base.html" %}
 {% block title %}새 상품 등록{% endblock %}
 {% block content %}
-<h2>상품 등록</h2>
-<form method="post" enctype="multipart/form-data">
-  제목: <input type="text" name="title" required><br>
-  설명: <br>
-  <textarea name="description" rows="4" cols="50" required></textarea><br>
-  가격: <input type="text" name="price" required><br>
-  이미지: <input type="file" name="image" accept="image/*"><br>
-  <button type="submit">등록하기</button>
-</form>
+<div class="container mt-4">
+    <h2>새 상품 등록</h2>
+    <form method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
+        <div style="margin-bottom: 15px;">
+            <label for="title">제목: <span style="color: red;">*</span></label>
+            <input type="text" id="title" name="title" required 
+                   style="width: 100%; padding: 8px;" placeholder="2글자 이상 입력해주세요.">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="description">상품 설명: <span style="color: red;">*</span></label><br>
+            <textarea id="description" name="description" rows="4" cols="50" required 
+                      placeholder="10글자 이상 입력해주세요." style="width: 100%; padding: 8px;"></textarea>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="is_free" style="display: inline-block; margin-right: 10px;">무료나눔</label>
+            <label class="switch">
+                <input type="checkbox" id="is_free" name="is_free" onchange="togglePriceField()">
+                <span class="slider round"></span>
+            </label>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="price">가격(원): <span style="color: red;">*</span></label>
+            <input type="number" id="price" name="price" required style="width: 100%; padding: 8px;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label for="image">이미지: (선택사항)</label>
+            <input type="file" id="image" name="image" accept="image/*" style="width: 100%;">
+        </div>
+
+        <div id="validation-message" style="display: none; color: red; margin-bottom: 15px; padding: 10px; border: 1px solid red; border-radius: 4px;">
+            제목, 설명, 가격은 필수 사항입니다.
+        </div>
+
+        <p style="color: #666; margin-bottom: 15px;"><span style="color: red;">*</span>은 필수사항입니다.</p>
+
+        <button type="submit" style="padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            등록하기
+        </button>
+    </form>
+</div>
+
+<style>
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+</style>
+
+<script>
+function validateForm() {
+    const title = document.getElementById('title').value;
+    const description = document.getElementById('description').value;
+    const price = document.getElementById('price').value;
+    const isFree = document.getElementById('is_free').checked;
+    const validationMessage = document.getElementById('validation-message');
+
+    // 제목, 설명, 가격 검증
+    if (title.length < 2 || description.length < 10 || (!isFree && !price)) {
+        validationMessage.style.display = 'block';
+        return false;
+    }
+
+    // 가격 범위 검증
+    if (!isFree) {
+        const priceNum = parseInt(price);
+        if (isNaN(priceNum) || priceNum < 0 || priceNum > 99999999999) {
+            alert('가격을 정확히 입력해주세요.');
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function togglePriceField() {
+    const priceInput = document.getElementById('price');
+    const isFree = document.getElementById('is_free').checked;
+    const priceLabel = document.querySelector('label[for="price"]');
+    
+    if (isFree) {
+        priceInput.value = '0';
+        priceInput.disabled = true;
+        priceLabel.innerHTML = '가격(원):';  // 무료나눔일 때는 필수 표시 제거
+    } else {
+        priceInput.value = '';
+        priceInput.disabled = false;
+        priceLabel.innerHTML = '가격(원): <span style="color: red;">*</span>';  // 일반 상품일 때는 필수 표시 추가
+    }
+}
+
+function handlePriceChange(event) {
+    const priceInput = event.target;
+    const freeToggle = document.getElementById('is_free');
+    const priceNum = parseInt(priceInput.value);
+    
+    if (!isNaN(priceNum) && priceNum === 0) {
+        freeToggle.checked = true;
+        togglePriceField();
+    } else if (freeToggle.checked) {
+        freeToggle.checked = false;
+        togglePriceField();
+    }
+}
+
+// 페이지 로드 시 초기 설정
+document.addEventListener('DOMContentLoaded', function() {
+    const priceInput = document.getElementById('price');
+    priceInput.addEventListener('input', handlePriceChange);
+    togglePriceField();
+});
+</script>
 {% endblock %}

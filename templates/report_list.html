@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}신고 내역 (전체){% endblock %}
+{% block content %}
+<h2>📋 전체 신고 목록</h2>
+<table border="1">
+  <tr>
+    <th>신고자 ID</th>
+    <th>신고자명</th>
+    <th>신고 대상ID</th>
+    <th>신고 사유</th>
+  </tr>
+  {% for r in reports %}
+  <tr>
+    <td>{{ r.id }}</td>
+    <td>{{ r.reporter }}</td>
+    <td>{{ r.target_id }}</td>
+    <td>{{ r.reason }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

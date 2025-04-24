@@ -2,7 +2,25 @@
 {% block title %}상품 상세보기{% endblock %}
 {% block content %}
 <h2>{{ product.title }}</h2>
+
+{% if product.image %}
+  <img src="{{ url_for('static', filename='uploads/' ~ product.image) }}" width="300"><br>
+{% endif %}
+
 <p>{{ product.description }}</p>
-<p>가격: {{ product.price }}</p>
+<p>가격: {{ product.price }}원</p>
 <p>판매자: {{ seller.username if seller else '알 수 없음' }}</p>
+
+<!-- 기존 상품 정보 아래에 추가 -->
+<hr>
+<h4>문제가 있는 상품인가요?</h4>
+<form action="{{ url_for('report') }}" method="post">
+  <input type="hidden" name="target_id" value="{{ product.id }}">
+  <label for="reason">신고 사유:</label><br>
+  <textarea name="reason" name="reason" rows="4" cols="50" required></textarea><br><br>
+  <button type="submit">🔔 이 상품 신고하기</button>
+</form>
+
 {% endblock %}
+
+

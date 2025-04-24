@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}내 신고 내역{% endblock %}
+{% block content %}
+<h2>📋 내가 신고한 목록</h2>
+<ul>
+  {% for r in reports %}
+    <li>📌 대상 ID: {{ r.target_id }} | ✏️ 사유: {{ r.reason }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}

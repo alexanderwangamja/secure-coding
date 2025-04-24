@@ -88,13 +88,13 @@
 <body>
   <nav>
     {% if session.get('user_id') %}
-      <a href="{{ url_for('dashboard') }}">대시보드</a>
-      <a href="{{ url_for('profile') }}">프로필</a>
-      <a href="{{ url_for('report') }}">신고하기</a>
-      <a href="{{ url_for('logout') }}">로그아웃</a>
+      <a href="{{ url_for('dashboard') }}">🏠홈</a>
+      <a href="{{ url_for('profile') }}">ℹ️프로필 및 정보 수정</a>
+      <a href="{{ url_for('report') }}">🚨 사용자 신고</a>
+      <a href="{{ url_for('logout') }}">🔑로그아웃</a>
     {% else %}
-      <a href="{{ url_for('login') }}">로그인</a>
-      <a href="{{ url_for('register') }}">회원가입</a>
+      <a href="{{ url_for('login') }}">🔑로그인</a>
+      <a href="{{ url_for('register') }}">👤회원가입</a>
     {% endif %}
   </nav>
   <div class="container">

@@ -1,11 +1,14 @@
 {% extends "base.html" %}
-{% block title %}신고하기{% endblock %}
+{% block title %}사용자 신고{% endblock %}
 {% block content %}
-<h2>신고하기</h2>
+<h2>🚨 사용자 신고</h2>
+
 <form method="post">
-  신고 대상 (사용자ID 또는 상품ID): <input type="text" name="target_id" required><br>
-  신고 사유: <br>
-  <textarea name="reason" rows="4" cols="50" required></textarea><br>
-  <button type="submit">신고 접수</button>
+  신고 대상 사용자 ID: <input type="text" name="target_id" required><br><br>
+  신고 사유:<br>
+  <textarea name="reason" rows="4" cols="50" required></textarea><br><br>
+  <button type="submit">신고하기</button>
 </form>
 {% endblock %}
+
+

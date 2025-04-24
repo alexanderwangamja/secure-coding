@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}관리자 대시보드{% endblock %}
+{% block content %}
+<h2>관리자 대시보드</h2>
+
+<h3>사용자 목록</h3>
+<ul>
+  {% for user in users %}
+    <li>{{ user.username }} | 휴면: {{ 'O' if user.is_suspended else 'X' }}</li>
+  {% endfor %}
+</ul>
+
+<h3>상품 목록</h3>
+<ul>
+  {% for product in products %}
+    <li>{{ product.title }} | 차단: {{ 'O' if product.is_blocked else 'X' }}</li>
+  {% endfor %}
+</ul>
+
+<h3>신고 내역</h3>
+<ul>
+  {% for report in reports %}
+    <li>{{ report.reporter_id }} → {{ report.target_id }} ({{ report.reason }})</li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}내 상품 목록{% endblock %}
+{% block content %}
+<h2>내가 등록한 상품</h2>
+
+{% if products %}
+  <ul>
+    {% for product in products %}
+      <li>
+        <a href="{{ url_for('view_product', product_id=product.id) }}">
+          {{ product.title }} - {{ product.price }}원
+        </a>
+        {% if product.image %}
+          <br><img src="{{ url_for('static', filename='uploads/' ~ product.image) }}" width="150">
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>아직 등록한 상품이 없습니다.</p>
+{% endif %}
+
+{% endblock %}

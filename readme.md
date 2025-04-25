@@ -14,7 +14,7 @@ A secure secondhand shopping platform built with Flask, featuring real-time chat
 
 ## Prerequisites
 
-- Ubuntu WSL or Linux environment
+- Linux environment
 - Miniconda/Anaconda
 - Python 3.8+
 - Git
@@ -23,7 +23,7 @@ A secure secondhand shopping platform built with Flask, featuring real-time chat
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/[your-username]/secure-coding
+git clone https://github.com/alexanderwangamja/secure-coding
 cd secure-coding
 ```
 

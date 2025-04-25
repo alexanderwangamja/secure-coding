@@ -49,29 +49,7 @@ werkzeug==2.0.1
 markupsafe==2.0.1
 ```
 
-4. Set up environment variables:
-Create a `.env` file in the project root with:
-```
-ADMIN_PASSWORD=your_admin_password
-SECRET_KEY=your_secret_key
-DEFAULT_INIT_PASSWORD=default_password
-```
-
-## Usage
-
-1. Initialize and run the server:
-```bash
-python app_final_complete.py
-```
-
-2. Access the application:
-- Local: `http://localhost:5000`
-- For external access (optional):
-```bash
-sudo snap install ngrok
-ngrok http 5000
-```
-## 구현된 기능
+4. Set한 기능
 1. 사용자 인증 및 계정 관리
 2. 회원가입: 아이디/비밀번호 유효성 검증 (길이, 문자 제한)
 3. 로그인: 5회 실패 시 5분간 잠금

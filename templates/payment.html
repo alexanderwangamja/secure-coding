@@ -107,97 +107,130 @@
     .transfer-button:hover {
         background-color: #0056b3;
     }
+
+    .table td, .table th {
+        padding: 1rem 0.875rem;
+        font-size: 0.875rem;
+    }
+
+    .table thead tr {
+        background-color: #f8fafc;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: #64748b;
+        font-size: 0.813rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-select {
+        font-size: 0.875rem;
+        border-color: rgba(0,0,0,.1);
+    }
+
+    .form-select:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 0.25rem rgba(37,99,235,.1);
+    }
+
+    .text-success {
+        color: #059669 !important;
+    }
+
+    .text-danger {
+        color: #dc2626 !important;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- 잔액 표시 -->
-    <div class="card mb-4">
-        <div class="card-header bg-white">
-            <h3 class="mb-0">내 잔액</h3>
-        </div>
-        <div class="card-body">
-            <h2 class="text-primary mb-0">{{ user.balance|format_price }}원</h2>
-        </div>
+<div class="container-fluid px-4 py-3">
+  <div class="card shadow-sm">
+    <div class="card-header bg-white py-3 border-bottom">
+      <h3 class="mb-0 fs-4">💰 결제</h3>
     </div>
-
-    <!-- 충전하기 -->
-    <div class="card mb-4">
-        <div class="card-header bg-white">
-            <h3 class="mb-0">충전하기</h3>
-        </div>
-        <div class="card-body">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-4">
+            <h4 class="mb-3">내 잔액</h4>
+            <div class="fs-3 fw-bold text-primary">{{ user.balance|format_price }}원</div>
+          </div>
+          <div class="mb-4">
+            <h4 class="mb-3">충전하기</h4>
             <form action="{{ url_for('charge_balance') }}" method="post">
-                <div class="form-group mb-3">
-                    <label for="amount" class="form-label">충전 금액</label>
-                    <select class="form-select" id="amount" name="amount" required>
-                        <option value="10000">10,000원</option>
-                        <option value="30000">30,000원</option>
-                        <option value="50000">50,000원</option>
-                        <option value="100000">100,000원</option>
-                        <option value="300000">300,000원</option>
-                        <option value="500000">500,000원</option>
-                        <option value="1000000">1,000,000원</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary">충전하기</button>
+              <div class="mb-3">
+                <label for="amount" class="form-label">충전 금액</label>
+                <select class="form-select" id="amount" name="amount" required>
+                  <option value="10000">10,000원</option>
+                  <option value="30000">30,000원</option>
+                  <option value="50000">50,000원</option>
+                  <option value="100000">100,000원</option>
+                  <option value="300000">300,000원</option>
+                  <option value="500000">500,000원</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary">충전하기</button>
             </form>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 
-    <!-- 결제 내역 -->
-    <div class="card">
-        <div class="card-header bg-white">
-            <h3 class="mb-0">결제 내역</h3>
-        </div>
-        <div class="card-body">
-            {% if transactions %}
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>날짜</th>
-                            <th>구분</th>
-                            <th>금액</th>
-                            <th>잔액</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for tx in transactions %}
-                        <tr>
-                            <td>{{ tx.created_at|format_datetime }}</td>
-                            <td>
-                                {% if tx.sender_uuid == user.uuid %}
-                                    {% if tx.type == 'CHARGE' %}
-                                        충전
-                                    {% else %}
-                                        {{ tx.receiver_id }}님에게 송금
-                                    {% endif %}
-                                {% else %}
-                                    {{ tx.sender_id }}님에게서 받음
-                                {% endif %}
-                            </td>
-                            <td class="{% if tx.sender_uuid == user.uuid and tx.type != 'CHARGE' %}text-danger{% else %}text-success{% endif %}">
-                                {% if tx.sender_uuid == user.uuid and tx.type != 'CHARGE' %}
-                                    -{{ tx.amount|format_price }}원
-                                {% else %}
-                                    +{{ tx.amount|format_price }}원
-                                {% endif %}
-                            </td>
-                            <td>{{ tx.balance_after|format_price }}원</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted mb-0">아직 결제 내역이 없습니다.</p>
-                <p class="text-muted">상단의 충전하기를 통해 첫 거래를 시작해보세요!</p>
-            </div>
-            {% endif %}
-        </div>
+  <div class="card shadow-sm mt-4">
+    <div class="card-header bg-white py-3 border-bottom">
+      <h3 class="mb-0 fs-4">📋 결제 내역</h3>
     </div>
+    <div class="card-body p-0">
+      {% if transactions %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr class="bg-light">
+              <th class="ps-4">날짜</th>
+              <th>구분</th>
+              <th>금액</th>
+              <th class="pe-4">잔액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tx in transactions %}
+            <tr>
+              <td class="ps-4">{{ tx.created_at|format_datetime }}</td>
+              <td>
+                {% if tx.sender_uuid == user.uuid %}
+                  {% if tx.type == 'CHARGE' %}
+                    충전
+                  {% else %}
+                    {{ tx.receiver_id }}님에게 송금
+                  {% endif %}
+                {% else %}
+                  {{ tx.sender_id }}님에게서 받음
+                {% endif %}
+              </td>
+              <td class="{% if tx.sender_uuid == user.uuid and tx.type != 'CHARGE' %}text-danger{% else %}text-success{% endif %}">
+                {% if tx.sender_uuid == user.uuid and tx.type != 'CHARGE' %}
+                  -{{ tx.amount|format_price }}원
+                {% else %}
+                  +{{ tx.amount|format_price }}원
+                {% endif %}
+              </td>
+              <td class="pe-4">{{ tx.balance_after|format_price }}원</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <p class="text-muted mb-0">아직 결제 내역이 없습니다.</p>
+        <p class="text-muted">상단의 충전하기를 통해 첫 거래를 시작해보세요!</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
 {% endblock %} 

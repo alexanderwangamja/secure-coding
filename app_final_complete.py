@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify, send_file
 from flask_socketio import SocketIO, send, join_room, leave_room, emit
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
 from functools import wraps
 import sqlite3
 import uuid
@@ -10,6 +11,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import re
 from markupsafe import escape
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # 로그인 필요 데코레이터 정의
 def login_required(f):
@@ -22,14 +24,48 @@ def login_required(f):
 
 load_dotenv()
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+SECRET_KEY = os.getenv("SECRET_KEY", "dev_key_please_change")  # 개발용 키, 실제 환경에서는 반드시 변경 필요
 
 app = Flask(__name__)
 CORS(app)
-app.config['SECRET_KEY'] = 'secret!'
+app.config['SECRET_KEY'] = SECRET_KEY
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)  # 세션 만료 시간 1시간
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS에서만 쿠키 전송
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # JavaScript에서 쿠키 접근 불가
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF 추가 방어
+
+csrf = CSRFProtect(app)
 DATABASE = 'market.db'
 
-# SocketIO 설정
+# SocketIO 설정 - CSRF 예외 처리
 socketio = SocketIO(app, cors_allowed_origins="*")
+@socketio.on_error_default
+def default_error_handler(e):
+    print(f'An error has occurred: {e}')
+    return False
+
+# CSRF 토큰 예외가 필요한 라우트를 위한 데코레이터
+def csrf_exempt(view):
+    if isinstance(view, str):
+        view_location = view
+        def decorator(f):
+            f.csrf_exempt = True
+            return f
+        return decorator
+    view.csrf_exempt = True
+    return view
+
+# Socket.IO 라우트에 CSRF 예외 적용
+@csrf_exempt
+def socket_connect():
+    pass
+
+@socketio.on('connect')
+def handle_connect():
+    if 'user_uuid' not in session:
+        return False
+    return True
+
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -42,9 +78,20 @@ def format_price(value):
 # 날짜 형식을 위한 필터 추가
 @app.template_filter('format_datetime')
 def format_datetime(value):
-    if value is None:
+    if not value:
         return ""
-    return value.strftime('%Y년 %m월 %d일 %H:%M')
+    try:
+        if isinstance(value, str):
+            # SQLite timestamp 형식 처리
+            if '.' in value:
+                value = datetime.strptime(value.split('.')[0], '%Y-%m-%d %H:%M:%S')
+            else:
+                value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+        # 한국 시간으로 변환 (UTC+9)
+        value = value + timedelta(hours=9)
+        return value.strftime('%Y년 %m월 %d일 %H:%M')
+    except (ValueError, AttributeError):
+        return str(value)  # 파싱 실패 시 원본 값 반환
 
 # Rate limiting을 위한 전역 변수
 message_timestamps = {}  # {user_uuid: last_message_time}
@@ -98,8 +145,10 @@ def init_db():
             price INTEGER NOT NULL,
             image TEXT,
             is_blocked INTEGER DEFAULT 0,
+            is_deleted INTEGER DEFAULT 0,
             seller_uuid TEXT NOT NULL,
             is_free INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (seller_uuid) REFERENCES user(uuid)
         )
     """)
@@ -122,6 +171,7 @@ def init_db():
             reporter_uuid TEXT NOT NULL,
             target_uuid TEXT NOT NULL,
             reason TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (reporter_uuid) REFERENCES user(uuid)
         )
     """)
@@ -147,6 +197,16 @@ def init_db():
             amount INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (chat_room_uuid) REFERENCES chat_room(uuid),
+            FOREIGN KEY (sender_uuid) REFERENCES user(uuid)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS global_chat_message (
+            uuid TEXT PRIMARY KEY,
+            sender_uuid TEXT NOT NULL,
+            sender_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (sender_uuid) REFERENCES user(uuid)
         )
     """)
@@ -212,7 +272,21 @@ def unsuspend_user(user_uuid):
     cursor.execute("UPDATE user SET is_suspended = 0 WHERE uuid = ?", (user_uuid,))
     db.commit()
 
-    flash("해당 사용자의 비활성화 상태가 해제되었습니다.")
+    flash("해당 이용자의 비활성화 상태가 해제되었습니다.")
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/user/<user_uuid>/suspend')
+def suspend_user(user_uuid):
+    if session.get('user_id') != 'admin':
+        flash('권한이 없습니다.')
+        return redirect(url_for('dashboard'))
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE user SET is_suspended = 1 WHERE uuid = ?", (user_uuid,))
+    db.commit()
+
+    flash("해당 이용자가 비활성화되었습니다.")
     return redirect(url_for('admin_users'))
 
 @app.route('/admin/user/<user_uuid>/reports')
@@ -227,9 +301,12 @@ def view_user_reports(user_uuid):
     user = cursor.fetchone()
 
     cursor.execute("""
-        SELECT r.uuid, r.reporter_uuid, r.reason
+        SELECT r.uuid, r.reporter_uuid, r.reason, r.created_at,
+               u.id as reporter_id
         FROM report r
+        JOIN user u ON r.reporter_uuid = u.uuid
         WHERE r.target_uuid = ?
+        ORDER BY r.created_at DESC
     """, (user_uuid,))
     reports = cursor.fetchall()
 
@@ -243,10 +320,27 @@ def delete_user_reports(user_uuid):
 
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("DELETE FROM report WHERE target_uuid = ?", (user_uuid,))
+    
+    # 특정 날짜 이후의 신고만 삭제하는 경우
+    after_date = request.form.get('after_date')
+    report_uuid = request.form.get('report_uuid')
+    
+    if report_uuid:
+        # 개별 신고 삭제
+        cursor.execute("DELETE FROM report WHERE uuid = ? AND target_uuid = ?", 
+                      (report_uuid, user_uuid))
+        flash("선택한 신고가 삭제되었습니다.")
+    elif after_date:
+        # 특정 날짜 이후의 신고 삭제
+        cursor.execute("DELETE FROM report WHERE target_uuid = ? AND created_at >= ?", 
+                      (user_uuid, after_date))
+        flash("선택한 날짜 이후의 모든 신고가 삭제되었습니다.")
+    else:
+        # 모든 신고 삭제
+        cursor.execute("DELETE FROM report WHERE target_uuid = ?", (user_uuid,))
+        flash("해당 이용자의 모든 신고 기록이 삭제되었습니다.")
+    
     db.commit()
-
-    flash("해당 사용자의 모든 신고 기록이 삭제되었습니다.")
     return redirect(url_for('view_user_reports', user_uuid=user_uuid))
 
 @app.route('/admin/products')
@@ -258,7 +352,7 @@ def admin_products():
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        SELECT p.uuid, p.title, p.price, p.is_blocked, u.id as seller
+        SELECT p.uuid, p.title, p.price, p.is_blocked, p.is_deleted, u.id as seller
         FROM product p
         JOIN user u ON p.seller_uuid = u.uuid
     """)
@@ -318,13 +412,41 @@ def index():
         return redirect(url_for('dashboard'))
     return render_template('index.html')
 
+def validate_user_input(user_id, password):
+    """사용자 입력값 검증 함수"""
+    # 아이디 검증: 2-20자, 영문/숫자/언더스코어만 허용
+    if not user_id or not isinstance(user_id, str):
+        return False, "아이디는 필수 입력값입니다."
+    if not 2 <= len(user_id) <= 20:
+        return False, "아이디는 2-20자 사이여야 합니다."
+    if not re.match(r'^[A-Za-z0-9_]+$', user_id):
+        return False, "아이디는 영문, 숫자, 언더스코어(_)만 사용 가능합니다."
+    
+    # 비밀번호 검증: 8자 이상, 영문/숫자 필수 포함
+    if not password or not isinstance(password, str):
+        return False, "비밀번호는 필수 입력값입니다."
+    if len(password) < 8:
+        return False, "비밀번호는 8자 이상이어야 합니다."
+    if not re.search(r'[A-Za-z]', password):
+        return False, "비밀번호는 최소 1개의 영문자를 포함해야 합니다."
+    if not re.search(r'\d', password):
+        return False, "비밀번호는 최소 1개의 숫자를 포함해야 합니다."
+    
+    return True, ""
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        user_id = request.form['id']
-        password = request.form['password']
-        confirm_password = request.form['confirm_password']
+        user_id = request.form.get('id', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
         
+        # 입력값 검증
+        is_valid, error_msg = validate_user_input(user_id, password)
+        if not is_valid:
+            flash(error_msg)
+            return redirect(url_for('register'))
+            
         if password != confirm_password:
             flash('비밀번호가 일치하지 않습니다.')
             return redirect(url_for('register'))
@@ -333,19 +455,29 @@ def register():
         cursor = db.cursor()
         cursor.execute("SELECT * FROM user WHERE id = ?", (user_id,))
         if cursor.fetchone():
-            flash('이미 존재하는 사용자명입니다.')
+            flash('이미 존재하는 이용자명입니다.')
             return redirect(url_for('register'))
+            
+        # XSS 방지를 위한 이스케이프 처리
+        user_id = escape(user_id)
+        
+        # 비밀번호 해시화
+        password_hash = generate_password_hash(password)
         user_uuid = str(uuid.uuid4())
-        cursor.execute("INSERT INTO user (uuid, id, password) VALUES (?, ?, ?)",
-                       (user_uuid, user_id, password))
+        cursor.execute(
+            "INSERT INTO user (uuid, id, password) VALUES (?, ?, ?)",
+            (user_uuid, user_id, password_hash)
+        )
         db.commit()
         flash('회원가입이 완료되었습니다.')
         return redirect(url_for('login'))
     return render_template('register.html')
 
+# 로그인 실패 횟수 저장을 위한 전역 변수
+login_attempts = {}
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # 이미 로그인된 사용자 처리
     if 'user_uuid' in session:
         flash('이미 로그인되어 있습니다.')
         return redirect(url_for('dashboard'))
@@ -353,20 +485,41 @@ def login():
     if request.method == 'POST':
         user_id = request.form['id']
         password = request.form['password']
+        
+        # 로그인 시도 횟수 확인
+        current_time = datetime.now()
+        if user_id in login_attempts:
+            attempts = login_attempts[user_id]
+            if len(attempts) >= 5 and (current_time - attempts[-1]).seconds < 300:  # 5회 실패 후 5분 대기
+                flash('로그인 시도가 너무 많습니다. 5분 후에 다시 시도해주세요.')
+                return redirect(url_for('login'))
+            # 5분이 지났다면 시도 횟수 초기화
+            if len(attempts) > 0 and (current_time - attempts[0]).seconds > 300:
+                login_attempts[user_id] = []
+        
         db = get_db()
         cursor = db.cursor()
-        cursor.execute("SELECT * FROM user WHERE id = ? AND password = ?", (user_id, password))
+        cursor.execute("SELECT * FROM user WHERE id = ?", (user_id,))
         user = cursor.fetchone()
-        if user:
+        
+        if user and check_password_hash(user['password'], password):
             if user['is_suspended']:
                 flash('신고 누적으로 계정이 비활성화되었습니다. 관리자에게 문의하세요.')
                 return redirect(url_for('login'))
             session['user_uuid'] = user['uuid']
             session['user_id'] = user['id']
+            session.permanent = True  # 세션 만료 시간 활성화
+            # 로그인 성공 시 실패 기록 삭제
+            if user_id in login_attempts:
+                del login_attempts[user_id]
             flash('로그인되었습니다.')
             return redirect(url_for('dashboard'))
         else:
-            flash('아이디 또는 비밀번호 오류입니다.')
+            # 로그인 실패 기록
+            if user_id not in login_attempts:
+                login_attempts[user_id] = []
+            login_attempts[user_id].append(current_time)
+            flash('아이디 또는 비밀번호가 올바르지 않습니다.')
             return redirect(url_for('login'))
     return render_template('login.html')
 
@@ -386,8 +539,8 @@ def dashboard():
     cursor.execute("SELECT * FROM user WHERE uuid = ?", (session['user_uuid'],))
     user = cursor.fetchone()
     
-    # 전체 상품 수 조회
-    cursor.execute("SELECT COUNT(*) as total FROM product WHERE is_blocked = 0")
+    # 전체 상품 수 조회 (삭제되지 않은 상품만)
+    cursor.execute("SELECT COUNT(*) as total FROM product WHERE is_blocked = 0 AND is_deleted = 0")
     total_count = cursor.fetchone()['total']
     
     # referer를 확인하여 홈 버튼을 통한 접근인지 확인
@@ -396,13 +549,14 @@ def dashboard():
     # 검색어 가져오기 (홈 버튼으로 접근시 무시)
     query = request.args.get('q', '').strip() if not is_home_button else ''
     
-    # 검색 조건에 따른 상품 조회
+    # 검색 조건에 따른 상품 조회 (삭제되지 않은 상품만)
     if query:
         cursor.execute("""
             SELECT p.*, u.id as seller_id 
             FROM product p 
             JOIN user u ON p.seller_uuid = u.uuid 
             WHERE p.is_blocked = 0 
+            AND p.is_deleted = 0
             AND (p.title LIKE ? OR p.description LIKE ?)
         """, ('%' + query + '%', '%' + query + '%'))
         products = cursor.fetchall()
@@ -414,6 +568,7 @@ def dashboard():
             FROM product p 
             JOIN user u ON p.seller_uuid = u.uuid 
             WHERE p.is_blocked = 0
+            AND p.is_deleted = 0
         """)
         products = cursor.fetchall()
 
@@ -423,65 +578,70 @@ def dashboard():
                          query=query,
                          total_count=total_count)
 
+def get_user_by_uuid(user_uuid):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM user WHERE uuid = ?", (user_uuid,))
+    return cursor.fetchone()
+
+def get_db_connection():
+    return get_db()
+
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     if 'user_uuid' not in session:
         return redirect(url_for('login'))
+
     db = get_db()
     cursor = db.cursor()
-    if request.method == 'POST':
-        bio = request.form['bio']
-        current_password = request.form.get('current_password', '').strip()
-        new_password = request.form.get('new_password', '').strip()
-        confirm_new_password = request.form.get('confirm_new_password', '').strip()
-
-        # 변경사항 추적
-        changes = []
-        
-        # 소개글 변경 확인
-        cursor.execute("SELECT bio FROM user WHERE uuid = ?", (session['user_uuid'],))
-        user_data = cursor.fetchone()
-        current_bio = user_data['bio'] if user_data else None
-        
-        if bio != current_bio:
-            cursor.execute("UPDATE user SET bio = ? WHERE uuid = ?", (bio, session['user_uuid']))
-            changes.append("소개글")
-
-        # 비밀번호 변경 로직
-        if current_password and new_password:
-            cursor.execute("SELECT password FROM user WHERE uuid = ?", (session['user_uuid'],))
-            stored_pw = cursor.fetchone()['password']
-            
-            # 기존 비밀번호 검증을 먼저 수행
-            if stored_pw != current_password:
-                flash("기존 비밀번호가 일치하지 않습니다.")
-                return redirect(url_for('profile'))
-            
-            # 기존 비밀번호가 일치하는 경우에만 새 비밀번호 검증
-            if new_password != confirm_new_password:
-                flash("새 비밀번호가 일치하지 않습니다.")
-                return redirect(url_for('profile'))
-                
-            cursor.execute("UPDATE user SET password = ? WHERE uuid = ?", (new_password, session['user_uuid']))
-            changes.append("비밀번호")
-        elif new_password or confirm_new_password or current_password:  # 비밀번호 필드 중 일부만 입력된 경우
-            flash("비밀번호를 변경하려면 모든 필드를 입력해야 합니다.")
-            return redirect(url_for('profile'))
-
-        # 변경사항 알림
-        if changes:
-            if len(changes) == 2:
-                flash("소개글과 비밀번호가 변경되었습니다.")
-            elif changes[0] == "소개글":
-                flash("소개글을 변경했습니다.")
-            else:
-                flash("비밀번호를 변경했습니다.")
-
-        db.commit()
-        return redirect(url_for('profile'))
-
     cursor.execute("SELECT * FROM user WHERE uuid = ?", (session['user_uuid'],))
     user = cursor.fetchone()
+    
+    if not user:
+        session.clear()
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        # 비밀번호 변경 처리
+        if 'current_password' in request.form:
+            current_password = request.form['current_password']
+            new_password = request.form['new_password']
+            confirm_password = request.form['confirm_password']
+
+            # 현재 비밀번호 확인
+            if current_password != user['password']:
+                flash('현재 비밀번호가 일치하지 않습니다.')
+                return redirect(url_for('profile'))
+
+            # 새 비밀번호 검증
+            if new_password != confirm_password:
+                flash('새 비밀번호가 일치하지 않습니다.')
+                return redirect(url_for('profile'))
+
+            if current_password == new_password:
+                flash('새 비밀번호가 현재 비밀번호와 같습니다.')
+                return redirect(url_for('profile'))
+
+            # 비밀번호 업데이트
+            cursor.execute(
+                'UPDATE user SET password = ? WHERE uuid = ?',
+                (new_password, user['uuid'])
+            )
+            db.commit()
+            flash('비밀번호가 성공적으로 변경되었습니다.')
+
+        # 자기소개 업데이트 처리
+        elif 'bio' in request.form:
+            bio = request.form['bio']
+            cursor.execute(
+                'UPDATE user SET bio = ? WHERE uuid = ?',
+                (bio, user['uuid'])
+            )
+            db.commit()
+            flash('자기소개가 성공적으로 업데이트되었습니다.')
+
+        return redirect(url_for('profile'))
+
     return render_template('profile.html', user=user)
 
 @app.route('/product/new', methods=['GET', 'POST'])
@@ -535,7 +695,11 @@ def my_products():
         return redirect(url_for('login'))
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM product WHERE seller_uuid = ?", (session['user_uuid'],))
+    cursor.execute("""
+        SELECT * FROM product 
+        WHERE seller_uuid = ? 
+        AND is_deleted = 0
+    """, (session['user_uuid'],))
     products = cursor.fetchall()
     return render_template('my_products.html', products=products)
 
@@ -543,14 +707,56 @@ def my_products():
 def view_product(product_uuid):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM product WHERE uuid = ?", (product_uuid,))
+    
+    try:
+        # created_at 필드를 포함하여 조회 시도
+        cursor.execute("""
+            SELECT uuid, title, description, price, image, is_blocked, 
+                   seller_uuid, is_free, created_at
+            FROM product 
+            WHERE uuid = ?
+        """, (product_uuid,))
+    except sqlite3.OperationalError:
+        # created_at 필드가 없는 경우 기본 필드만 조회
+        cursor.execute("""
+            SELECT uuid, title, description, price, image, is_blocked, 
+                   seller_uuid, is_free
+            FROM product 
+            WHERE uuid = ?
+        """, (product_uuid,))
+    
     product = cursor.fetchone()
-    if not product or product['is_blocked']:
-        flash('이 상품은 존재하지 않거나 차단되었습니다.')
+    
+    if not product:
+        flash('존재하지 않는 상품입니다.')
         return redirect(url_for('dashboard'))
-    cursor.execute("SELECT * FROM user WHERE uuid = ?", (product['seller_uuid'],))
+        
+    # 관리자가 아닌 경우에만 차단된 상품 접근 제한
+    if product['is_blocked'] and session.get('user_id') != 'admin':
+        flash('이 상품은 차단되었습니다.')
+        return redirect(url_for('dashboard'))
+        
+    # Convert product to a mutable dictionary
+    product_dict = dict(product)
+    
+    # created_at 처리 (필드가 없는 경우 None으로 설정)
+    if 'created_at' not in product_dict:
+        product_dict['created_at'] = None
+    elif product_dict['created_at']:
+        try:
+            # SQLite timestamp 문자열을 파싱
+            timestamp = product_dict['created_at']
+            if isinstance(timestamp, str):
+                if '.' in timestamp:
+                    product_dict['created_at'] = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S.%f')
+                else:
+                    product_dict['created_at'] = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        except (ValueError, TypeError):
+            product_dict['created_at'] = None
+            
+    cursor.execute("SELECT * FROM user WHERE uuid = ?", (product_dict['seller_uuid'],))
     seller = cursor.fetchone()
-    return render_template('view_product.html', product=product, seller=seller)
+    return render_template('view_product.html', product=product_dict, seller=seller)
 
 @app.route('/report', methods=['GET', 'POST'])
 def report():
@@ -575,12 +781,12 @@ def report():
                 flash("자기 자신은 신고할 수 없습니다.")
                 return redirect(url_for('report'))
 
-            # target_id로 사용자 찾기
+            # target_id로 이용자 찾기
             cursor.execute("SELECT uuid FROM user WHERE id = ?", (target_id,))
             user_row = cursor.fetchone()
 
             if not user_row:
-                flash("존재하지 않는 사용자입니다.")
+                flash("존재하지 않는 이용자입니다.")
                 return redirect(url_for('report'))
 
             target_uuid = user_row['uuid']
@@ -608,7 +814,7 @@ def report():
         flash("신고가 접수되었습니다.")
         return redirect(url_for('dashboard'))
 
-    # admin을 제외한 모든 사용자 목록 가져오기
+    # admin을 제외한 모든 이용자 목록 가져오기
     cursor.execute("""
         SELECT id FROM user 
         WHERE id != 'admin' 
@@ -644,7 +850,7 @@ def transfer():
     receiver = cursor.fetchone()
     
     if not receiver:
-        flash('존재하지 않는 사용자입니다.')
+        flash('존재하지 않는 이용자입니다.')
         return redirect(url_for('payment'))
         
     if receiver['uuid'] == sender['uuid']:
@@ -661,7 +867,7 @@ def transfer():
     chat_room = cursor.fetchone()
     
     if not chat_room:
-        flash('상품 거래 관련 채팅방이 없는 사용자에게는 송금할 수 없습니다.')
+        flash('상품 거래 관련 채팅방이 없는 이용자에게는 송금할 수 없습니다.')
         return redirect(url_for('payment'))
         
     if sender['balance'] < amount:
@@ -693,7 +899,7 @@ def transfer():
     return redirect(url_for('payment'))
 
 @app.route('/admin/reports')
-def view_all_reports():
+def admin_reports():
     if session.get('user_id') != 'admin':
         flash("접근 권한이 없습니다.")
         return redirect(url_for('dashboard'))
@@ -701,54 +907,39 @@ def view_all_reports():
     db = get_db()
     cursor = db.cursor()
 
+    # 이용자 신고 내역 조회
     cursor.execute("""
-        SELECT r.uuid, r.reason, r.reporter_uuid, r.target_uuid, u.id AS reporter
+        SELECT r.uuid, r.reason, r.created_at,
+               r.reporter_uuid, r.target_uuid,
+               u1.id as reporter_id,
+               u2.id as target_id
+        FROM report r
+        JOIN user u1 ON r.reporter_uuid = u1.uuid
+        JOIN user u2 ON r.target_uuid = u2.uuid
+        WHERE r.target_uuid IN (SELECT uuid FROM user)
+        ORDER BY r.created_at DESC
+    """)
+    user_reports = cursor.fetchall()
+
+    # 상품 신고 내역 조회
+    cursor.execute("""
+        SELECT r.uuid, r.reason, r.created_at,
+               r.reporter_uuid, r.target_uuid,
+               u.id as reporter_id,
+               p.title as product_title,
+               s.id as seller_id
         FROM report r
         JOIN user u ON r.reporter_uuid = u.uuid
+        JOIN product p ON r.target_uuid = p.uuid
+        JOIN user s ON p.seller_uuid = s.uuid
+        WHERE r.target_uuid IN (SELECT uuid FROM product)
+        ORDER BY r.created_at DESC
     """)
-    reports = cursor.fetchall()
+    product_reports = cursor.fetchall()
 
-    enriched_reports = []
-    for r in reports:
-        target_uuid = r['target_uuid'].strip()
-
-        # 사용자 확인
-        cursor.execute("SELECT id FROM user WHERE uuid = ?", (target_uuid,))
-        user_result = cursor.fetchone()
-
-        if user_result:
-            target_display = f"사용자: {user_result['id']}"
-        else:
-            # 상품 여부 확인
-            cursor.execute("SELECT title FROM product WHERE uuid = ?", (target_uuid,))
-            product_result = cursor.fetchone()
-
-            if product_result:
-                target_display = f"상품: {product_result['title']}"
-            else:
-                target_display = "❓알 수 없음"
-
-        enriched_reports.append({
-            'uuid': r['uuid'],
-            'reporter': r['reporter'],
-            'reason': r['reason'],
-            'target_display': target_display
-        })
-
-    return render_template('report_list.html', reports=enriched_reports)
-
-@app.route('/admin/reports/delete_all', methods=['POST'])
-def delete_all_reports():
-    if session.get('user_id') != 'admin':
-        flash('접근 권한이 없습니다.')
-        return redirect(url_for('dashboard'))
-
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute("DELETE FROM report")
-    db.commit()
-    flash("모든 신고 내역이 삭제되었습니다.")
-    return redirect(url_for('view_all_reports'))
+    return render_template('report_list.html', 
+                         user_reports=user_reports,
+                         product_reports=product_reports)
 
 @app.route('/admin/reports/<report_uuid>/delete', methods=['POST'])
 def delete_report(report_uuid):
@@ -760,8 +951,9 @@ def delete_report(report_uuid):
     cursor = db.cursor()
     cursor.execute("DELETE FROM report WHERE uuid = ?", (report_uuid,))
     db.commit()
-    flash("해당 신고 내역이 삭제되었습니다.")
-    return redirect(url_for('view_all_reports'))
+    
+    flash("해당 신고가 삭제되었습니다.")
+    return redirect(url_for('admin_reports'))
 
 @app.route('/my-reports')
 def my_reports():
@@ -770,16 +962,43 @@ def my_reports():
 
     db = get_db()
     cursor = db.cursor()
+    
+    # 신고 내역 조회 (상품 정보와 이이용자 정보 포함)
     cursor.execute("""
-        SELECT uuid, target_uuid, reason FROM report
-        WHERE reporter_uuid = ?
+        SELECT 
+            r.uuid, r.target_uuid, r.reason, r.created_at,
+            CASE 
+                WHEN p.uuid IS NOT NULL THEN 'product'
+                ELSE 'user'
+            END as target_type,
+            CASE 
+                WHEN p.uuid IS NOT NULL THEN p.title
+                ELSE u.id
+            END as target_name,
+            CASE 
+                WHEN p.uuid IS NOT NULL AND p.is_blocked = 1 THEN 1
+                WHEN u.uuid IS NOT NULL AND u.is_suspended = 1 THEN 1
+                ELSE 0
+            END as is_processed
+        FROM report r
+        LEFT JOIN product p ON r.target_uuid = p.uuid
+        LEFT JOIN user u ON r.target_uuid = u.uuid
+        WHERE r.reporter_uuid = ?
+        ORDER BY r.created_at DESC
     """, (session['user_uuid'],))
+    
     reports = cursor.fetchall()
     return render_template('my_reports.html', reports=reports)
 
 def check_report_threshold(target_uuid):
     db = get_db()
     cursor = db.cursor()
+
+    # admin 계정인지 확인
+    cursor.execute("SELECT id FROM user WHERE uuid = ?", (target_uuid,))
+    user = cursor.fetchone()
+    if user and user['id'] == 'admin':
+        return  # admin 계정은 비활성화하지 않음
 
     # 해당 대상의 신고 누적 수 확인
     cursor.execute("SELECT COUNT(*) FROM report WHERE target_uuid = ?", (target_uuid,))
@@ -790,7 +1009,7 @@ def check_report_threshold(target_uuid):
     if count >= 5:
         cursor.execute("UPDATE user SET is_suspended = 1 WHERE uuid = ?", (target_uuid,))
         db.commit()
-        print(f"[INFO] 사용자 {target_uuid}는 신고 {count}회 누적으로 비활성화되었습니다.")
+        print(f"[INFO] 이용자 {target_uuid}는 신고 {count}회 누적으로 비활성화되었습니다.")
 
     # 상품 신고 누적 3회 이상인 상품 → 차단
     cursor.execute("""
@@ -810,9 +1029,10 @@ def create_admin_if_not_exists():
     cursor.execute("SELECT * FROM user WHERE id = 'admin'")
     if not cursor.fetchone():
         admin_uuid = str(uuid.uuid4())
+        hashed_password = generate_password_hash(ADMIN_PASSWORD)
         cursor.execute(
             "INSERT INTO user (uuid, id, password) VALUES (?, ?, ?)",
-            (admin_uuid, 'admin', ADMIN_PASSWORD)
+            (admin_uuid, 'admin', hashed_password)
         )
         db.commit()
 
@@ -842,15 +1062,59 @@ def handle_global_chat(data):
     if not sender:
         return
     
-    # 전역 메시지 전송 (room='global'을 사용)
+    # 메시지 저장
+    message_uuid = str(uuid.uuid4())
+    cursor.execute("""
+        INSERT INTO global_chat_message (uuid, sender_uuid, sender_id, content, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (message_uuid, session['user_uuid'], sender['id'], message, now))
+    
+    # 최근 100개 메시지만 유지
+    cursor.execute("""
+        DELETE FROM global_chat_message 
+        WHERE uuid NOT IN (
+            SELECT uuid FROM global_chat_message 
+            ORDER BY created_at DESC 
+            LIMIT 100
+        )
+    """)
+    
+    db.commit()
+    
+    # 전역 메시지 전송
     response = {
         'sender_uuid': session['user_uuid'],
         'sender_id': sender['id'],
         'message': message,
-        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        'timestamp': now.strftime('%Y-%m-%d %H:%M:%S')
     }
     
     socketio.emit('global_chat_message', response, to='global')
+
+@app.route('/global-chat/messages')
+def get_global_chat_messages():
+    if 'user_uuid' not in session:
+        return jsonify([])
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT sender_uuid, sender_id, content, created_at
+        FROM global_chat_message
+        ORDER BY created_at DESC
+        LIMIT 100
+    """)
+    
+    messages = []
+    for row in cursor.fetchall():
+        messages.append({
+            'sender_uuid': row['sender_uuid'],
+            'sender_id': row['sender_id'],
+            'message': row['content'],
+            'timestamp': row['created_at']
+        })
+    
+    return jsonify(messages[::-1])  # 시간 순으로 정렬하여 반환
 
 # 1:1 채팅을 위한 이벤트 핸들러
 @socketio.on('private_chat')
@@ -953,7 +1217,7 @@ def delete_account():
             flash("비밀번호가 일치하지 않습니다.")
             return redirect(url_for('delete_account'))
         
-        # 사용자 관련 데이터 삭제
+        # 이용자 관련 데이터 삭제
         cursor.execute("DELETE FROM report WHERE reporter_uuid = ? OR target_uuid = ?", 
                       (session['user_uuid'], session['user_uuid']))
         cursor.execute("DELETE FROM product WHERE seller_uuid = ?", (session['user_uuid'],))
@@ -1124,6 +1388,7 @@ def handle_chat_message(data):
         'created_at': now.strftime('%Y-%m-%d %H:%M:%S')
     }
     
+    
     socketio.emit('chat_message', message, room=room_uuid)
 
 @socketio.on('join')
@@ -1223,7 +1488,7 @@ def delete_chat_room(room_uuid):
         if not chat_room:
             return jsonify({'error': '채팅방을 찾을 수 없습니다.'}), 404
             
-        # 현재 사용자가 채팅방의 참여자인지 확인
+        # 현재 이용자가 채팅방의 참여자인지 확인
         if chat_room['buyer_uuid'] != session['user_uuid'] and chat_room['seller_uuid'] != session['user_uuid']:
             return jsonify({'error': '권한이 없습니다.'}), 403
             
@@ -1250,12 +1515,12 @@ def payment():
     db = get_db()
     cursor = db.cursor()
     
-    # 사용자 정보 가져오기
+    # 이용자 정보 가져오기
     cursor.execute("SELECT * FROM user WHERE uuid = ?", (session['user_uuid'],))
     user = cursor.fetchone()
     
     if not user:
-        flash('사용자 정보를 찾을 수 없습니다.')
+        flash('이용자 정보를 찾을 수 없습니다.')
         return redirect(url_for('logout'))
     
     # 거래 내역 가져오기 (충전 및 송금 내역)
@@ -1520,7 +1785,7 @@ def chat_room(room_uuid):
     cursor.execute('SELECT balance FROM user WHERE uuid = ?', (session['user_uuid'],))
     user = cursor.fetchone()
     if not user:
-        flash('사용자 정보를 찾을 수 없습니다.')
+        flash('이용자 정보를 찾을 수 없습니다.')
         return redirect(url_for('logout'))
     
     balance = user['balance']
@@ -1602,6 +1867,7 @@ def handle_payment_transfer(data):
         # 구매자 잔액 확인
         cursor.execute("SELECT balance FROM user WHERE uuid = ?", (session['user_uuid'],))
         buyer = cursor.fetchone()
+        
         if buyer['balance'] < amount:
             emit('payment_error', {'message': '잔액이 부족합니다.'})
             return
@@ -1643,6 +1909,128 @@ def handle_payment_transfer(data):
         db.rollback()
         print(f"Error in payment_transfer: {e}")
         emit('payment_error', {'message': '송금 처리 중 오류가 발생했습니다.'})
+
+@app.route('/admin/products/<product_uuid>/block', methods=['POST'])
+def block_product(product_uuid):
+    if session.get('user_id') != 'admin':
+        flash('접근 권한이 없습니다.')
+        return redirect(url_for('dashboard'))
+
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE product SET is_blocked = 1 WHERE uuid = ?", (product_uuid,))
+    db.commit()
+
+    flash("상품이 차단되었습니다.")
+    return redirect(url_for('admin_products'))
+
+@app.route('/product/<product_uuid>/edit', methods=['GET', 'POST'])
+def edit_product(product_uuid):
+    if 'user_uuid' not in session:
+        return redirect(url_for('login'))
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # 상품 정보 조회
+    cursor.execute("""
+        SELECT p.*, u.id as seller_id 
+        FROM product p 
+        JOIN user u ON p.seller_uuid = u.uuid 
+        WHERE p.uuid = ?
+    """, (product_uuid,))
+    product = cursor.fetchone()
+    
+    if not product:
+        flash('존재하지 않는 상품입니다.')
+        return redirect(url_for('dashboard'))
+        
+    # 관리자이거나 상품 판매자인 경우에만 수정 가능
+    if session.get('user_id') != 'admin' and session['user_uuid'] != product['seller_uuid']:
+        flash('상품을 수정할 권한이 없습니다.')
+        return redirect(url_for('view_product', product_uuid=product_uuid))
+    
+    if request.method == 'POST':
+        title = request.form['title']
+        description = request.form['description']
+        is_free = request.form.get('is_free') == 'on'
+        price = 0 if is_free else int(request.form['price'])
+        
+        # 제목 검증 (2글자 이상)
+        if len(title) < 2:
+            flash('제목은 2글자 이상이어야 합니다.')
+            return redirect(url_for('edit_product', product_uuid=product_uuid))
+            
+        # 설명 검증 (10글자 이상)
+        if len(description) < 10:
+            flash('설명은 10글자 이상이어야 합니다.')
+            return redirect(url_for('edit_product', product_uuid=product_uuid))
+            
+        # 가격 검증
+        if not is_free and (price <= 0 or price > 99999999999):
+            flash('가격을 정확히 입력해주세요.')
+            return redirect(url_for('edit_product', product_uuid=product_uuid))
+            
+        image_file = request.files.get('image')
+        image_filename = product['image']  # 기존 이미지 유지
+        
+        if image_file and image_file.filename and allowed_file(image_file.filename):
+            image_filename = secure_filename(str(uuid.uuid4()) + os.path.splitext(image_file.filename)[1])
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            image_file.save(image_path)
+            
+            # 기존 이미지가 있다면 삭제
+            if product['image']:
+                old_image_path = os.path.join(app.config['UPLOAD_FOLDER'], product['image'])
+                try:
+                    os.remove(old_image_path)
+                except OSError:
+                    pass
+            
+        cursor.execute("""
+            UPDATE product 
+            SET title = ?, description = ?, price = ?, image = ?, is_free = ?
+            WHERE uuid = ?
+        """, (title, description, price, image_filename, 1 if is_free else 0, product_uuid))
+        db.commit()
+        
+        flash('상품이 수정되었습니다.')
+        return redirect(url_for('view_product', product_uuid=product_uuid))
+        
+    return render_template('edit_product.html', product=product)
+
+@app.route('/product/<product_uuid>/delete')
+@login_required
+def delete_my_product(product_uuid):
+    db = get_db()
+    cursor = db.cursor()
+    
+    try:
+        # 상품 존재 여부 확인
+        cursor.execute("SELECT * FROM product WHERE uuid = ? AND is_deleted = 0", (product_uuid,))
+        product = cursor.fetchone()
+        if not product:
+            flash('존재하지 않는 상품입니다.')
+            return redirect(url_for('my_products'))
+
+        # 상품 소유자 확인
+        if product['seller_uuid'] != session['user_uuid']:
+            flash('자신의 상품만 삭제할 수 있습니다.')
+            return redirect(url_for('view_product', product_uuid=product_uuid))
+
+        # 상품을 삭제 상태로 변경
+        cursor.execute("UPDATE product SET is_deleted = 1 WHERE uuid = ?", (product_uuid,))
+        db.commit()
+        
+        flash('상품이 성공적으로 삭제되었습니다.')
+        return redirect(url_for('my_products'))
+
+    except Exception as e:
+        db.rollback()
+        print(f"상품 삭제 중 오류 발생: {str(e)}")
+        flash('상품 삭제 중 오류가 발생했습니다. 다시 시도해주세요.')
+        return redirect(url_for('view_product', product_uuid=product_uuid))
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

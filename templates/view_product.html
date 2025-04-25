@@ -3,80 +3,254 @@
 
 {% block content %}
 <div class="container mt-4">
-    {% if product and not product.is_blocked %}
-    <div class="card">
-        <div class="card-header bg-white">
-            <h2 class="mb-0">{{ product.title }}</h2>
-        </div>
-        {% if product.image %}
-        <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
-             class="card-img-top" alt="{{ product.title }}"
-             style="max-height: 500px; object-fit: contain; padding: 20px;">
-        {% endif %}
-        <div class="card-body">
-            <div class="card bg-light mb-4">
+    {% if product %}
+        {% if not product.is_blocked or session.user_id == 'admin' %}
+            <div class="card">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="mb-0">
+                            {{ product.title }}
+                            {% if session.user_id == 'admin' %}
+                                {% if product.is_blocked %}
+                                    <span class="badge bg-warning text-dark ms-2">차단됨</span>
+                                {% else %}
+                                    <span class="badge bg-success ms-2">정상</span>
+                                {% endif %}
+                            {% endif %}
+                        </h2>
+                        <div class="text-muted d-flex align-items-center">
+                            <i class="far fa-clock me-2"></i>
+                            등록일: {{ product.created_at|format_datetime }}
+                        </div>
+                    </div>
+                </div>
+                {% if product.image %}
+                    <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
+                         class="card-img-top" alt="{{ product.title }}"
+                         style="max-height: 500px; object-fit: contain; padding: 20px;">
+                {% endif %}
                 <div class="card-body">
-                    <h5 class="card-title">상품 설명</h5>
-                    <p class="card-text" style="white-space: pre-wrap;">{{ product.description }}</p>
-                </div>
-            </div>
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">상품 설명</h5>
+                            <p class="card-text" style="white-space: pre-wrap;">{{ product.description }}</p>
+                        </div>
+                    </div>
 
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <p class="mb-0">
-                        {% if product.is_free %}
-                            <span class="badge badge-success">무료나눔</span>
-                        {% else %}
-                            <strong>가격:</strong> {{ product.price|format_price }}원
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p class="mb-0">
+                                {% if product.is_free %}
+                                    <span class="badge bg-success px-3 py-2" style="font-size: 1rem;">
+                                        🎁 무료나눔
+                                    </span>
+                                {% else %}
+                                    <span class="d-flex align-items-center">
+                                        <strong class="me-2">가격:</strong>
+                                        <span class="fs-5">{{ product.price|format_price }}원</span>
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <p class="mb-0">
+                                <strong>판매자:</strong> {{ seller.id }}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2 mt-4 justify-content-end">
+                        {% if session.user_id == 'admin' %}
+                            <a href="{{ url_for('edit_product', product_uuid=product.uuid) }}" class="btn btn-primary btn-action">수정</a>
+                            {% if product.is_blocked %}
+                                <form action="{{ url_for('unblock_product', product_uuid=product.uuid) }}" method="GET">
+                                    <button type="submit" class="btn btn-success btn-action">차단 해제</button>
+                                </form>
+                            {% else %}
+                                <form action="{{ url_for('block_product', product_uuid=product.uuid) }}" method="POST">
+                                    <button type="submit" class="btn btn-warning btn-action">차단</button>
+                                </form>
+                            {% endif %}
+                            <form action="{{ url_for('delete_product', product_uuid=product.uuid) }}" method="GET">
+                                <button type="submit" class="btn btn-danger btn-action" 
+                                        onclick="return confirm('정말 이 상품을 삭제하시겠습니까?');">삭제</button>
+                            </form>
+                        {% elif session.user_uuid == product.seller_uuid %}
+                            <a href="{{ url_for('edit_product', product_uuid=product.uuid) }}" class="btn btn-primary btn-action">수정</a>
+                            <form action="{{ url_for('delete_my_product', product_uuid=product.uuid) }}" method="get">
+                                <button type="submit" class="btn btn-danger btn-action" 
+                                        onclick="return confirm('정말 이 상품을 삭제하시겠습니까?');">삭제</button>
+                            </form>
+                        {% elif session.user_uuid %}
+                            <form action="{{ url_for('start_chat', product_uuid=product.uuid) }}" method="post">
+                                <button type="submit" class="btn btn-primary btn-action">판매자와 채팅하기</button>
+                            </form>
                         {% endif %}
-                    </p>
-                </div>
-                <div class="col-md-6 text-md-right">
-                    <p class="mb-0">
-                        <strong>판매자:</strong> {{ seller.id }}
-                    </p>
+                    </div>
                 </div>
             </div>
-            
-            {% if session.user_uuid and session.user_uuid != product.seller_uuid %}
-                <form action="{{ url_for('start_chat', product_uuid=product.uuid) }}" method="post" class="d-inline">
-                    <button type="submit" class="btn btn-primary btn-lg btn-block">
-                        채팅으로 거래하기
-                    </button>
-                </form>
-            {% endif %}
-            
-            {% if session.user_uuid == product.seller_uuid %}
-                <button class="btn btn-secondary btn-lg btn-block" disabled>내 상품입니다</button>
-            {% endif %}
-            
-            {% if not session.user_uuid %}
-                <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg btn-block">로그인하고 채팅하기</a>
-            {% endif %}
-        </div>
-    </div>
 
-    <!-- 신고하기 섹션 -->
-    <div class="card mt-4">
-        <div class="card-header bg-light">
-            <h5 class="mb-0">문제가 있는 상품인가요?</h5>
-        </div>
-        <div class="card-body">
-            <form action="{{ url_for('report') }}" method="post">
-                <input type="hidden" name="target_id" value="{{ product.uuid }}">
-                <input type="hidden" name="target_type" value="product">
-                <div class="form-group">
-                    <label for="reason"><strong>신고 사유:</strong></label>
-                    <textarea name="reason" id="reason" class="form-control" rows="4" required></textarea>
+            <!-- 신고하기 섹션 -->
+            {% if session.user_uuid and session.user_uuid != product.seller_uuid %}
+                <div class="card mt-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">🚨 이 상품 신고하기</h5>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('report') }}" method="post">
+                            <input type="hidden" name="target_type" value="product">
+                            <input type="hidden" name="target_id" value="{{ product.uuid }}">
+                            <div class="mb-3">
+                                <label for="reason" class="form-label">신고 사유</label>
+                                <textarea class="form-control" id="reason" name="reason" rows="3" required
+                                    placeholder="상품에 문제가 있나요?
+신고 사유를 상세하게 작성해 주시면, 빠르게 검토 후 해결해드릴게요!"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-danger">신고하기</button>
+                        </form>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-danger">
-                    🔔 이 상품 신고하기
-                </button>
-            </form>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-warning">
+                <h4>⚠️ 이 상품은 관리자에 의해 차단되었습니다.</h4>
+                <p class="mb-0">다른 상품을 둘러보시겠어요?</p>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary mt-3">상품 목록으로 돌아가기</a>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-warning">
+            <h4>⚠️ 존재하지 않는 상품입니다.</h4>
+            <p class="mb-0">다른 상품을 둘러보시겠어요?</p>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary mt-3">상품 목록으로 돌아가기</a>
         </div>
-    </div>
     {% endif %}
 </div>
+
+<style>
+.container {
+    max-width: 800px;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-bottom: 1px solid #eee;
+    padding: 1rem 1.5rem;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.product-info {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.product-description {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.btn-block {
+    margin-top: 1.5rem;
+}
+
+.text-muted {
+    color: #6c757d;
+}
+
+.text-success {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.text-primary {
+    color: #007bff;
+}
+
+textarea.form-control {
+    resize: vertical;
+}
+
+.badge {
+    font-size: 0.875rem;
+    padding: 0.5em 1em;
+    font-weight: 500;
+    height: 36px;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    border-radius: 4px;
+}
+.btn-action {
+    min-width: 80px;
+    height: 36px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 1rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    margin: 0;
+}
+.btn-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.d-flex.gap-2 {
+    margin: -0.25rem;
+    min-height: 36px;
+}
+.d-flex.gap-2 > * {
+    margin: 0.25rem;
+}
+/* 버튼 색상 강화 */
+.btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+}
+.btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #000;
+}
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+.btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+</style>
+
+<script>
+function confirmDelete() {
+    if (confirm('정말 이 상품을 삭제하시겠습니까?')) {
+        window.location.href = "{{ url_for('delete_my_product', product_uuid=product.uuid) }}";
+    }
+}
+</script>
 {% endblock %}
 
 

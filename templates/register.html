@@ -5,23 +5,28 @@
   <a href="{{ url_for('login') }}" style="display: inline-block; padding: 8px 16px; background-color: #007AFF; color: white; text-decoration: none; border-radius: 5px;">🔑 로그인</a>
 </div>
 <h2>회원가입</h2>
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+      <div style="color: red; margin-bottom: 10px;">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
 <form method="post" onsubmit="return validateForm()">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
   <div style="margin-bottom: 15px;">
-    <label for="id">아이디:</label><br>
-    <input type="text" id="id" name="id" required>
+    <label for="id" style="display: block; margin-bottom: 5px;">아이디</label>
+    <input type="text" id="id" name="id" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
   </div>
-  
   <div style="margin-bottom: 15px;">
-    <label for="password">비밀번호:</label><br>
-    <input type="password" id="password" name="password" required>
+    <label for="password" style="display: block; margin-bottom: 5px;">비밀번호</label>
+    <input type="password" id="password" name="password" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
   </div>
-  
   <div style="margin-bottom: 15px;">
-    <label for="confirm_password">비밀번호 확인:</label><br>
-    <input type="password" id="confirm_password" name="confirm_password" required>
+    <label for="confirm_password" style="display: block; margin-bottom: 5px;">비밀번호 확인</label>
+    <input type="password" id="confirm_password" name="confirm_password" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
   </div>
-  
-  <button type="submit">회원가입</button>
+  <button type="submit" style="background-color: #007AFF; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">가입하기</button>
 </form>
 
 <script>

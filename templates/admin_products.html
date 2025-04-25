@@ -1,32 +1,175 @@
 {% extends "base.html" %}
-{% block title %}상품 관리{% endblock %}
+{% block title %}전체 상품 목록{% endblock %}
 {% block content %}
-<h2>📋 등록된 전체 상품 목록</h2>
+<div class="card">
+  <div class="card-header bg-light">
+    <div class="d-flex justify-content-between align-items-center">
+      <h3 class="mb-0">📦 전체 상품</h3>
+      <a href="{{ url_for('admin_blocked_products') }}" class="btn btn-secondary">
+        ⏪ 차단 상품 목록
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>상품명</th>
+            <th>판매자</th>
+            <th>가격</th>
+            <th class="text-center">상태</th>
+            <th class="text-center">관리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+            <tr>
+              <td>
+                <a href="{{ url_for('view_product', product_uuid=product.uuid) }}" class="text-decoration-none">
+                  {{ product.title }}
+                </a>
+              </td>
+              <td>{{ product.seller }}</td>
+              <td>{{ product.price|format_price }}원</td>
+              <td class="text-center">
+                {% if product.is_deleted %}
+                  <span class="badge bg-danger">삭제됨</span>
+                {% elif product.is_blocked %}
+                  <span class="badge bg-warning text-dark">차단됨</span>
+                {% else %}
+                  <span class="badge bg-success">정상</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <div class="d-flex justify-content-center gap-2">
+                  {% if not product.is_deleted %}
+                    <a href="{{ url_for('edit_product', product_uuid=product.uuid) }}" 
+                       class="btn btn-primary btn-action">수정</a>
+                    {% if product.is_blocked %}
+                      <form action="{{ url_for('unblock_product', product_uuid=product.uuid) }}" 
+                            method="GET">
+                        <button type="submit" class="btn btn-success btn-action">차단 해제</button>
+                      </form>
+                    {% else %}
+                      <form action="{{ url_for('block_product', product_uuid=product.uuid) }}" 
+                            method="POST">
+                        <button type="submit" class="btn btn-warning btn-action">차단</button>
+                      </form>
+                    {% endif %}
+                    <form action="{{ url_for('delete_product', product_uuid=product.uuid) }}" 
+                          method="GET">
+                      <button type="submit" class="btn btn-danger btn-action"
+                              onclick="return confirm('정말 이 상품을 삭제하시겠습니까?');">삭제</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
-<table border="1">
-  <tr>
-    <th>상품 UUID</th>
-    <th>상품명</th>
-    <th>가격</th>
-    <th>판매자</th>
-    <th>차단 여부</th>
-    <th>기능</th>
-  </tr>
-  {% for p in products %}
-  <tr>
-    <td>{{ p.uuid }}</td>
-    <td>{{ p.title }}</td>
-    <td>{{ p.price }}</td>
-    <td>{{ p.seller }}</td>
-    <td>{{ '차단됨' if p.is_blocked else '정상' }}</td>
-    <td>
-      {% if p.is_blocked %}
-        <a href="{{ url_for('unblock_product', product_uuid=p.uuid) }}">차단 해제</a> |
-      {% endif %}
-      <a href="{{ url_for('delete_product', product_uuid=p.uuid) }}" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-
+<style>
+.table {
+  margin-bottom: 0;
+}
+.table td, .table th {
+  padding: 1rem;
+  vertical-align: middle;
+}
+.badge {
+  font-size: 0.875rem;
+  padding: 0.5em 1em;
+  font-weight: 500;
+  height: 36px;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  border-radius: 4px;
+}
+.btn-action {
+  min-width: 80px;
+  height: 36px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  margin: 0;
+}
+.btn-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.d-flex.justify-content-center.gap-2 {
+  margin: -0.25rem;
+  min-height: 36px;
+}
+.d-flex.justify-content-center.gap-2 > * {
+  margin: 0.25rem;
+}
+/* 버튼 색상 강화 */
+.btn-warning {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #000;
+}
+.btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+  color: #000;
+}
+.btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+.btn-primary:hover {
+  background-color: #0069d9;
+  border-color: #0062cc;
+}
+.btn-secondary {
+  height: 36px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+.btn-secondary:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+</style>
 {% endblock %}

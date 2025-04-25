@@ -1,137 +1,145 @@
-# Secure Coding
+# Secure Shopping Platform
 
-## Tiny Secondhand Shopping Platform.
+A secure secondhand shopping platform built with Flask, featuring real-time chat, secure payment system, and comprehensive security measures.
 
-You should add some functions and complete the security requirements.
+## Features
 
-## requirements
+- User authentication and authorization
+- Real-time chat system using Socket.IO
+- Secure payment and transfer system
+- Product listing and management
+- Admin dashboard
+- Report system for users and products
+- Comprehensive security measures
 
-if you don't have a miniconda(or anaconda), you can install it on this url. - https://docs.anaconda.com/free/miniconda/index.html
+## Prerequisites
 
+- Ubuntu WSL or Linux environment
+- Miniconda/Anaconda
+- Python 3.8+
+- Git
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/[your-username]/secure-coding
+cd secure-coding
 ```
-git clone https://github.com/ugonfor/secure-coding
-conda env create -f enviroments.yaml
+
+2. Create and activate Conda environment:
+```bash
+conda env create -f environment.yaml
+conda activate secure-coding
 ```
 
-## usage
-
-run the server process.
-
-```
-python app.py
+3. Install required packages:
+```bash
+pip install -r requirements.txt
 ```
 
-if you want to test on external machine, you can utilize the ngrok to forwarding the url.
+Required packages in requirements.txt:
 ```
-# optional
+flask==2.0.1
+flask-socketio==5.1.1
+flask-cors==3.0.10
+flask-wtf==0.15.1
+python-dotenv==0.19.0
+werkzeug==2.0.1
+markupsafe==2.0.1
+```
+
+4. Set up environment variables:
+Create a `.env` file in the project root with:
+```
+ADMIN_PASSWORD=your_admin_password
+SECRET_KEY=your_secret_key
+DEFAULT_INIT_PASSWORD=default_password
+```
+
+## Usage
+
+1. Initialize and run the server:
+```bash
+python app_final_complete.py
+```
+
+2. Access the application:
+- Local: `http://localhost:5000`
+- For external access (optional):
+```bash
 sudo snap install ngrok
 ngrok http 5000
 ```
 
-# 보안 개선 사항 문서
+## Implemented Security Features
 
-## Socket.IO 채팅 기능 보안 강화
+1. User Authentication & Session Management
+- Password hashing using Werkzeug's security functions
+- Session-based authentication with 1-hour expiration
+- CSRF protection using Flask-WTF
+- Login attempt rate limiting (5 attempts per 5 minutes)
+- Secure session cookie settings (HttpOnly, Secure flags, SameSite)
 
-### 1. 입력 유효성 검사 (Input Validation)
-- 메시지 데이터 구조 검증
-  - 입력이 dictionary 형태인지 확인
-  - 필수 필드 'content' 존재 여부 확인
-- 메시지 내용 검증
-  - 문자열 타입 검사
-  - 최대 길이 제한 (1000자)
-- 구현 위치: `handle_message()` 함수
+2. Input Validation & XSS Prevention
+- Server-side validation for user registration
+  - Username: 2-20 characters, alphanumeric and underscore only
+  - Password: Minimum 8 characters, must include letters and numbers
+- HTML escaping using MarkupSafe
+- Secure file upload handling with extension validation
 
-### 2. Rate Limiting
-- 사용자별 메시지 전송 제한
-  - 초당 최대 1개의 메시지만 허용
-  - 전역 딕셔너리를 사용하여 사용자별 마지막 메시지 전송 시간 추적
-- DoS 공격 방지
-- 구현 위치: `handle_message()` 함수, 전역 변수 `message_timestamps`
+3. Chat Security
+- Rate limiting: Maximum 1 message per second per user
+- Session-based authentication for WebSocket connections
+- Input sanitization for chat messages
 
-### 3. XSS 방지
-- 메시지 내용 HTML 이스케이프 처리
-- `markupsafe.escape` 함수 사용
-- 악성 스크립트 삽입 공격 방지
-- 구현 위치: `handle_message()` 함수의 메시지 전송 부분
+4. Payment System Security
+- Transaction verification and logging
+- Balance validation before transfers
+- Atomic database transactions for payment operations
+- Secure payment request and confirmation system
 
-### 4. 기존 보안 기능
-- 세션 기반 인증
-  - 모든 소켓 이벤트에서 세션의 `user_uuid` 확인
-- 사용자 존재 여부 검증
-  - 데이터베이스에서 사용자 정보 확인
-- 연결 및 연결 해제 이벤트 처리
-  - 적절한 권한 검증
-  - 시스템 메시지 브로드캐스트
+5. Admin Security Features
+- Protected admin routes and functions
+- User suspension system after 5 reports
+- Product blocking system after 3 reports
+- Secure password reset functionality
 
-## 보안 강화 효과
-1. 무분별한 메시지 전송 방지
-2. 서비스 안정성 향상
-3. XSS 공격으로부터 보호
-4. 인증된 사용자만의 접근 보장
+6. Database Security
+- Parameterized SQL queries to prevent SQL injection
+- UUID-based identification for all entities
+- Proper database connection handling and cleanup
 
-## 향후 개선 가능 사항
-1. 메시지 내용 필터링 (비속어, 스팸 등)
-2. IP 기반 Rate Limiting 추가
-3. 메시지 암호화
-4. WebSocket 연결 보안 강화 (SSL/TLS)
+## Directory Structure
 
-## UI/UX 보안 개선
+```
+secure-coding/
+├── app_final_complete.py    # Main application file
+├── static/                  # Static files (CSS, JS, images)
+├── templates/              # HTML templates
+├── uploads/               # User uploaded files
+├── market.db             # SQLite database
+├── requirements.txt      # Python dependencies
+├── environment.yaml      # Conda environment file
+└── .env                 # Environment variables
+```
 
-### 1. 관리자 계정 식별성 강화
-- 관리자 로그인 시 눈에 띄는 경고 메시지 표시
-- 빨간색 배경과 흰색 텍스트로 시각적 강조
-- "⚠️ 관리자 계정을 사용중입니다." 메시지로 명확한 상태 전달
-- 목적: 관리자가 권한이 있는 계정 사용 중임을 인지하도록 하여 실수 방지
+## Contributing
 
-## 채팅 시스템 개선 사항
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
 
-### 1. 송금 요청 시스템 강화
-- 송금 요청 확인 모달 추가
-  - 요청 금액 재확인 기능
-  - 실수로 인한 잘못된 금액 요청 방지
-- 송금 요청 메시지 개선
-  - 요청자 정보 명확히 표시
-  - 시간 정보 한국어 형식으로 표시
-  - 금액 천 단위 구분자 적용
+## License
 
-### 2. 송금 처리 보안 강화
-- 송금 금액 유효성 검사 추가
-  - 음수 금액 전송 방지
-  - 잔액 초과 송금 방지
-  - 요청 금액과 일치 여부 확인
-- 송금 확인 모달 구현
-  - 현재 잔액 표시
-  - 송금 금액 재확인
-  - 실수로 인한 잘못된 송금 방지
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-### 3. 채팅방 기능 개선
-- 시스템 메시지 표시 방식 개선
-  - 중앙 정렬로 가시성 향상
-  - 배경색 차별화로 구분성 강화
-  - 메시지 종류별 스타일 적용
-- 자동 스크롤 기능 추가
-  - 새 메시지 수신 시 자동 스크롤
-  - 사용자 편의성 향상
+## Acknowledgments
 
-### 4. 사용자 인터페이스 개선
-- 채팅방 헤더 개선
-  - 상품명 표시
-  - 상대방 정보 표시
-  - 나가기 버튼 추가
-- 메시지 스타일 개선
-  - 사용자별 메시지 색상 구분
-  - 시간 표시 형식 통일
-  - 가독성 향상을 위한 여백 조정
-
-### 5. 오류 처리 강화
-- 상세한 오류 메시지 제공
-  - 송금 실패 사유 명확히 표시
-  - 잔액 부족 시 즉각적인 알림
-  - 요청 금액 불일치 시 경고
-- 실시간 유효성 검사
-  - 입력값 즉시 검증
-  - 오류 상황 즉시 피드백
-
-
-
+- Flask and its extensions
+- Socket.IO for real-time communication
+- SQLite for database management
+- Bootstrap for frontend styling
 

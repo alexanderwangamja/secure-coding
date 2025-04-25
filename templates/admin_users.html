@@ -1,28 +1,121 @@
 {% extends "base.html" %}
-{% block title %}전체 사용자 목록{% endblock %}
+{% block title %}이용자 관리{% endblock %}
+
 {% block content %}
-<h2>👥 사용자 목록</h2>
-<table border="1">
-  <tr>
-    <th>UUID</th>
-    <th>아이디</th>
-    <th>소개글</th>
-    <th>상태</th>
-    <th>기능</th>
-  </tr>
-  {% for user in users %}
-  <tr>
-    <td>{{ user.uuid }}</td>
-    <td>{{ user.id }}</td>
-    <td>{{ user.bio or '' }}</td>
-    <td>{{ '비활성화' if user.is_suspended else '정상' }}</td>
-    <td>
-      <a href="{{ url_for('reset_password', user_uuid=user.uuid) }}">비밀번호 초기화</a> |
-      <a href="{{ url_for('edit_bio', user_uuid=user.uuid) }}">소개글 수정</a> |
-      <a href="{{ url_for('unsuspend_user', user_uuid=user.uuid) }}">휴면 해제</a> |
-      <a href="{{ url_for('view_user_reports', user_uuid=user.uuid) }}">신고내역</a>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
+<div class="container-fluid px-4 py-3">
+  <div class="card shadow-sm">
+    <div class="card-header bg-white py-3 border-bottom">
+      <h3 class="mb-0 fs-4">👥 이용자 목록</h3>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr class="bg-light">
+              <th class="ps-4" style="width: 180px;">아이디</th>
+              <th class="text-center" style="width: 120px;">상태</th>
+              <th class="text-end pe-4">관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+              <tr>
+                <td class="ps-4">{{ user.id }}</td>
+                <td class="text-center">
+                  {% if user.is_suspended %}
+                    <span class="badge bg-danger">비활성화</span>
+                  {% else %}
+                    <span class="badge bg-success">정상</span>
+                  {% endif %}
+                </td>
+                <td class="text-end pe-4">
+                  <div class="btn-group">
+                    <a href="{{ url_for('edit_bio', user_uuid=user.uuid) }}" 
+                       class="btn btn-outline-secondary btn-sm">
+                      <i class="fas fa-edit me-1"></i>소개 수정
+                    </a>
+                    <a href="{{ url_for('reset_password', user_uuid=user.uuid) }}" 
+                       class="btn btn-outline-warning btn-sm"
+                       onclick="return confirm('비밀번호를 초기화하시겠습니까?');">
+                      <i class="fas fa-key me-1"></i>비밀번호 초기화
+                    </a>
+                    {% if user.is_suspended %}
+                    <a href="{{ url_for('unsuspend_user', user_uuid=user.uuid) }}" 
+                       class="btn btn-outline-success btn-sm">
+                      <i class="fas fa-user-check me-1"></i>재활성화
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('suspend_user', user_uuid=user.uuid) }}" 
+                       class="btn btn-outline-danger btn-sm">
+                      <i class="fas fa-user-slash me-1"></i>비활성화
+                    </a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.container-fluid {
+  max-width: 1600px;
+}
+.card {
+  border: 1px solid rgba(0,0,0,.1);
+  border-radius: 8px;
+}
+.card-header {
+  background-color: #fff !important;
+}
+.table {
+  margin-bottom: 0;
+}
+.table td, .table th {
+  padding: 1rem 0.875rem;
+  vertical-align: middle;
+  border-bottom-width: 1px;
+  font-size: 0.875rem;
+}
+.table > :not(:first-child) {
+  border-top: none;
+}
+.badge {
+  font-size: 0.8125rem;
+  padding: 0.4em 0.8em;
+  font-weight: 500;
+  height: 24px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  border-radius: 4px;
+}
+.btn-group {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+.btn-sm {
+  height: 32px;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+.btn-sm i {
+  font-size: 0.875rem;
+}
+.btn-sm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 5px rgba(0,0,0,.08);
+}
+</style>
 {% endblock %}

@@ -50,9 +50,10 @@
       display: flex;
       gap: 15px;
       flex-wrap: wrap;
+      align-items: center;
     }
 
-    .nav-links a {
+    .nav-links a, .nav-links .dropdown > a {
       text-decoration: none;
       color: #333;
       padding: 5px 10px;
@@ -60,8 +61,20 @@
       transition: background-color 0.2s;
     }
 
-    .nav-links a:hover {
+    .nav-links a:hover, .nav-links .dropdown > a:hover {
       background-color: #f0f0f0;
+      text-decoration: none;
+      color: #333;
+    }
+
+    .nav-links .dropdown {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .nav-links .dropdown-menu {
+      margin-top: 5px;
     }
 
     .container {
@@ -142,6 +155,266 @@
       margin: 10px 0;
       width: fit-content;
     }
+
+    /* 관리자 메뉴 스타일 */
+    .admin-menu {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .admin-menu h3 {
+      color: #dc3545;
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .admin-menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .admin-menu-section {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+    }
+
+    .admin-menu-section strong {
+      display: block;
+      color: #333;
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .admin-menu-section ul {
+      margin: 0;
+      padding: 0;
+    }
+
+    .admin-menu-section li {
+      list-style: none;
+      margin-bottom: 8px;
+      border: none;
+      padding: 0;
+    }
+
+    .admin-menu-section a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      color: #555;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .admin-menu-section a:hover {
+      background-color: #f8f9fa;
+      color: #007bff;
+      transform: translateX(5px);
+    }
+
+    /* 버튼 스타일 */
+    .btn {
+      display: inline-block;
+      font-weight: 400;
+      text-align: center;
+      vertical-align: middle;
+      user-select: none;
+      padding: .375rem .75rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      border-radius: .25rem;
+      transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+      width: auto;
+    }
+
+    .btn-primary {
+      color: #fff;
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+
+    .btn-secondary {
+      color: #fff;
+      background-color: #6c757d;
+      border-color: #6c757d;
+    }
+
+    .btn-danger {
+      color: #fff;
+      background-color: #dc3545;
+      border-color: #dc3545;
+    }
+
+    .btn-success {
+      color: #fff;
+      background-color: #28a745;
+      border-color: #28a745;
+    }
+
+    .btn-warning {
+      color: #212529;
+      background-color: #ffc107;
+      border-color: #ffc107;
+    }
+
+    .btn-info {
+      color: #fff;
+      background-color: #17a2b8;
+      border-color: #17a2b8;
+    }
+
+    .btn-sm {
+      padding: .25rem .5rem;
+      font-size: .875rem;
+      line-height: 1.5;
+      border-radius: .2rem;
+    }
+
+    /* 테이블 스타일 */
+    .table {
+      width: 100%;
+      margin-bottom: 1rem;
+      color: #212529;
+      border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+      padding: .75rem;
+      vertical-align: middle;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .table thead th {
+      vertical-align: bottom;
+      border-bottom: 2px solid #dee2e6;
+      background-color: #f8f9fa;
+    }
+
+    .table tbody tr:hover {
+      background-color: rgba(0,0,0,.075);
+    }
+
+    /* 배지 스타일 */
+    .badge {
+      display: inline-block;
+      padding: .25em .4em;
+      font-size: 75%;
+      font-weight: 700;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: baseline;
+      border-radius: .25rem;
+    }
+
+    .badge-primary { background-color: #007bff; color: #fff; }
+    .badge-secondary { background-color: #6c757d; color: #fff; }
+    .badge-success { background-color: #28a745; color: #fff; }
+    .badge-danger { background-color: #dc3545; color: #fff; }
+    .badge-warning { background-color: #ffc107; color: #212529; }
+    .badge-info { background-color: #17a2b8; color: #fff; }
+
+    /* 카드 스타일 */
+    .card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      word-wrap: break-word;
+      background-color: #fff;
+      background-clip: border-box;
+      border: 1px solid rgba(0,0,0,.125);
+      border-radius: .25rem;
+      margin-bottom: 1rem;
+    }
+
+    .card-header {
+      padding: .75rem 1.25rem;
+      margin-bottom: 0;
+      background-color: rgba(0,0,0,.03);
+      border-bottom: 1px solid rgba(0,0,0,.125);
+    }
+
+    .card-body {
+      flex: 1 1 auto;
+      min-height: 1px;
+      padding: 1.25rem;
+    }
+
+    /* 폼 스타일 */
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-control {
+      display: block;
+      width: 100%;
+      height: calc(1.5em + .75rem + 2px);
+      padding: .375rem .75rem;
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #495057;
+      background-color: #fff;
+      background-clip: padding-box;
+      border: 1px solid #ced4da;
+      border-radius: .25rem;
+      transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    }
+
+    .form-control:focus {
+      color: #495057;
+      background-color: #fff;
+      border-color: #80bdff;
+      outline: 0;
+      box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    /* 알림 메시지 스타일 */
+    .alert {
+      position: relative;
+      padding: .75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid transparent;
+      border-radius: .25rem;
+    }
+
+    .alert-success {
+      color: #155724;
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+    }
+
+    .alert-danger {
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+
+    .alert-warning {
+      color: #856404;
+      background-color: #fff3cd;
+      border-color: #ffeeba;
+    }
+
+    .alert-info {
+      color: #0c5460;
+      background-color: #d1ecf1;
+      border-color: #bee5eb;
+    }
   </style>
 </head>
 <body>
@@ -154,39 +427,52 @@
             ⚠️ 관리자 계정을 사용중입니다.
           </div>
         {% else %}
-          <div class="welcome-text">{{ session.user_id }}님 환영합니다.</div>
+          <div class="welcome-text">{{ session.user_id }}님 방문을 환영합니다.</div>
         {% endif %}
         <div class="nav-links">
-          <a href="{{ url_for('dashboard') }}">🏠 홈</a>
-          <a href="{{ url_for('chat_rooms') }}">💬 채팅</a>
-          <a href="{{ url_for('payment') }}">💰 결제</a>
-          <a href="{{ url_for('profile') }}">ℹ️ 마이페이지</a>
-          <a href="{{ url_for('report') }}">🚨 불량 이용자 신고</a>
-          <a href="#" onclick="confirmLogout()">🔑 로그아웃</a>
+          <a href="{{ url_for('dashboard') }}">🏠 <strong>홈</strong></a>
+          <a href="{{ url_for('chat_rooms') }}">💬 <strong>채팅</strong></a>
+          <a href="{{ url_for('payment') }}">💰 <strong>결제</strong></a>
+          <a href="{{ url_for('profile') }}">ℹ️ <strong>마이페이지</strong></a>
+          <div class="dropdown">
+            <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown">
+              🚨 <strong>신고</strong>
+            </a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="{{ url_for('report') }}">신고하기</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('my_reports') }}">내 신고 내역</a></li>
+            </ul>
+          </div>
+          <a href="{{ url_for('logout') }}" onclick="return confirm('정말 로그아웃하시겠습니까?')">
+            🚪 <strong>로그아웃</strong>
+          </a>
         </div>
       {% endif %}
       {% if session.user_id == 'admin' %}
-        <hr>
-        <h3>🔧 관리자 메뉴</h3>
-        <ul>
-          <li><strong>👤 사용자 관리</strong>
-            <ul>
-              <li><a href="{{ url_for('admin_users') }}">👥 사용자 목록</a></li>
-            </ul>
-          </li>
-          <li><strong>📦 상품 관리</strong>
-            <ul>
-              <li><a href="{{ url_for('admin_products') }}">📋 전체 상품 목록</a></li>
-              <li><a href="{{ url_for('admin_blocked_products') }}">🚫 차단된 상품 관리</a></li>
-            </ul>
-          </li>
-          <li><strong>🚨 신고 관리</strong>
-            <ul>
-              <li><a href="{{ url_for('view_all_reports') }}">📋 모든 신고 내역 확인</a></li>
-            </ul>
-          </li>
-        </ul>
-        <hr>
+        <div class="admin-menu">
+          <h3>🔧 관리자 전용 메뉴</h3>
+          <div class="admin-menu-grid">
+            <div class="admin-menu-section">
+              <strong>👤 이용자 관리</strong>
+              <ul>
+                <li><a href="{{ url_for('admin_users') }}">👥 모든 이용자 목록</a></li>
+              </ul>
+            </div>
+            <div class="admin-menu-section">
+              <strong>📦 상품 관리</strong>
+              <ul>
+                <li><a href="{{ url_for('admin_products') }}">📋 모든 상품 목록</a></li>
+                <li><a href="{{ url_for('admin_blocked_products') }}">🚫 차단 상품 관리</a></li>
+              </ul>
+            </div>
+            <div class="admin-menu-section">
+              <strong>🚨 신고 관리</strong>
+              <ul>
+                <li><a href="{{ url_for('admin_reports') }}">📋 신고 내역 관리</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
       {% endif %}
     </div>
   </nav>

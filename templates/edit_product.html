@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}상품 수정{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h3 class="mb-0">✏️ 상품 수정</h3>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-info">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="post" enctype="multipart/form-data" onsubmit="return validateForm()" novalidate>
+                        <div class="mb-3">
+                            <label for="title" class="form-label">
+                                상품명 <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="title" name="title" 
+                                   value="{{ product.title }}" required minlength="2" title="상품명은 2글자 이상 입력해주세요.">
+                            <div class="invalid-feedback">
+                                상품명을 2글자 이상 입력해주세요.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">
+                                상품 설명 <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="description" name="description" 
+                                    rows="5" required minlength="10" title="상품 설명은 10글자 이상 입력해주세요.">{{ product.description }}</textarea>
+                            <div class="invalid-feedback">
+                                상품 설명을 10글자 이상 입력해주세요.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="is_free" 
+                                       name="is_free" {% if product.is_free %}checked{% endif %}
+                                       onchange="togglePriceField()" style="margin-right: 10px;">
+                                <label class="form-check-label" for="is_free">
+                                    🎁 무료나눔
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="price_field" {% if product.is_free %}style="display: none;"{% endif %}>
+                            <label for="price" class="form-label">
+                                가격 <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="price" name="price" 
+                                       value="{{ product.price }}" min="0" max="99999999999">
+                                <span class="input-group-text" style="height: 38px; display: flex; align-items: center; background-color: #e9ecef; border: 1px solid #ced4da;">원</span>
+                            </div>
+                            <div class="invalid-feedback" style="display: none;">
+                                가격을 입력해주세요.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="image" class="form-label">상품 이미지</label>
+                            {% if product.image %}
+                            <div class="mb-2">
+                                <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
+                                     alt="현재 이미지" class="img-thumbnail" style="max-height: 200px;">
+                                <p class="form-text">새 이미지를 업로드하면 기존 이미지는 삭제됩니다.</p>
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control form-control-blue" id="image" name="image" 
+                                   accept="image/png,image/jpeg,image/gif">
+                            <style>
+                                .form-control-blue::-webkit-file-upload-button {
+                                    background-color: #0d6efd;
+                                    color: white;
+                                    border: 0;
+                                    padding: 0.375rem 0.75rem;
+                                    margin-right: 0.75rem;
+                                    border-radius: 0.375rem;
+                                }
+                                .form-control-blue::file-selector-button {
+                                    background-color: #0d6efd;
+                                    color: white;
+                                    border: 0;
+                                    padding: 0.375rem 0.75rem;
+                                    margin-right: 0.75rem;
+                                    border-radius: 0.375rem;
+                                }
+                            </style>
+                            <div class="form-text">PNG, JPG, GIF 파일만 업로드 가능합니다.</div>
+                        </div>
+
+                        <div id="validation-message" class="alert alert-danger" style="display: none;">
+                            필수 입력 사항을 확인하세요.
+                        </div>
+
+                        <p class="text-danger mb-3">
+                            <small>* 은 필수사항입니다.</small>
+                        </p>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                💾 변경사항 저장
+                            </button>
+                            <a href="{{ url_for('view_product', product_uuid=product.uuid) }}" 
+                               class="btn btn-outline-secondary">
+                                취소
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function validateForm() {
+    const title = document.getElementById('title');
+    const description = document.getElementById('description');
+    const price = document.getElementById('price');
+    const isFree = document.getElementById('is_free').checked;
+    const validationMessage = document.getElementById('validation-message');
+
+    let isValid = true;
+
+    // 제목 검증
+    if (title.value.length < 2) {
+        title.classList.add('is-invalid');
+        isValid = false;
+    } else {
+        title.classList.remove('is-invalid');
+    }
+
+    // 설명 검증
+    if (description.value.length < 10) {
+        description.classList.add('is-invalid');
+        isValid = false;
+    } else {
+        description.classList.remove('is-invalid');
+    }
+
+    // 가격 검증
+    if (!isFree) {
+        const priceValue = price.value.trim();
+        if (priceValue === '') {
+            price.value = '0';  // 빈 값인 경우 0으로 설정
+        } else {
+            const priceNum = parseInt(priceValue);
+            if (isNaN(priceNum) || priceNum < 0 || priceNum > 99999999999) {
+                alert('가격을 정확히 입력해주세요.');
+                return false;
+            }
+        }
+    }
+
+    if (!isValid) {
+        validationMessage.style.display = 'block';
+        return false;
+    }
+
+    validationMessage.style.display = 'none';
+    return true;
+}
+
+function togglePriceField() {
+    const isFree = document.getElementById('is_free').checked;
+    const priceField = document.getElementById('price_field');
+    const price = document.getElementById('price');
+    
+    if (isFree) {
+        priceField.style.display = 'none';
+        price.value = '0';
+    } else {
+        priceField.style.display = 'block';
+        if (price.value === '0') {
+            price.value = '';
+        }
+    }
+}
+
+function handlePriceChange(event) {
+    const priceInput = event.target;
+    const freeToggle = document.getElementById('is_free');
+    const priceNum = parseInt(priceInput.value);
+    
+    if (!isNaN(priceNum) && priceNum === 0) {
+        freeToggle.checked = true;
+        togglePriceField();
+    } else if (freeToggle.checked) {
+        freeToggle.checked = false;
+        togglePriceField();
+    }
+}
+
+// 페이지 로드 시 초기 설정
+document.addEventListener('DOMContentLoaded', function() {
+    const priceInput = document.getElementById('price');
+    priceInput.addEventListener('input', handlePriceChange);
+});
+</script>
+{% endblock %} 

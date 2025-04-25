@@ -1,47 +1,151 @@
 {% extends "base.html" %}
-{% block title %}전체 신고 내역{% endblock %}
-{% block content %}
-<h2>📊 전체 신고 내역</h2>
+{% block title %}신고 내역{% endblock %}
 
-<!-- 왼쪽 정렬된 전체 삭제 버튼 -->
-<div style="margin-bottom: 10px;">
-  <form method="POST"
-        action="{{ url_for('delete_all_reports') }}"
-        onsubmit="return confirm('⚠ 모든 신고를 삭제하시겠습니까?');"
-        style="display: inline;">
-    <button type="submit"
-            style="background-color: crimson; color: white; font-size: 0.85rem;
-                   padding: 4px 10px; border: none; border-radius: 5px; cursor: pointer;">
-      🧨 모든 신고 삭제
-    </button>
-  </form>
+{% block content %}
+<div class="container-fluid px-4 py-3">
+  <div class="card shadow-sm">
+    <div class="card-header bg-white py-3">
+      <h3 class="card-title mb-0">🧾 신고 내역</h3>
+    </div>
+    <div class="card-body p-0">
+      <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#user-reports" type="button" role="tab">
+            불량 이용자 신고 내역
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#product-reports" type="button" role="tab">
+            상품 신고 내역
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content">
+        <!-- 불량 이용자 신고 내역 -->
+        <div class="tab-pane fade show active" id="user-reports" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>신고 대상</th>
+                  <th>신고자</th>
+                  <th>신고 사유</th>
+                  <th>신고 일시</th>
+                  <th class="text-center">관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for report in user_reports %}
+                <tr>
+                  <td>{{ report.target_id }}</td>
+                  <td>{{ report.reporter_id }}</td>
+                  <td>{{ report.reason }}</td>
+                  <td>{{ report.created_at|format_datetime }}</td>
+                  <td class="text-center">
+                    <form action="{{ url_for('delete_report', report_uuid=report.uuid) }}" method="post" 
+                          onsubmit="return confirm('이 신고를 삭제하시겠습니까?');" style="display: inline;">
+                      <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="5" class="text-center py-4">접수된 이용자 신고가 없습니다.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 상품 신고 내역 -->
+        <div class="tab-pane fade" id="product-reports" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>상품명</th>
+                  <th>판매자</th>
+                  <th>신고자</th>
+                  <th>신고 사유</th>
+                  <th>신고 일시</th>
+                  <th class="text-center">관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for report in product_reports %}
+                <tr>
+                  <td>{{ report.product_title }}</td>
+                  <td>{{ report.seller_id }}</td>
+                  <td>{{ report.reporter_id }}</td>
+                  <td>{{ report.reason }}</td>
+                  <td>{{ report.created_at|format_datetime }}</td>
+                  <td class="text-center">
+                    <form action="{{ url_for('delete_report', report_uuid=report.uuid) }}" method="post" 
+                          onsubmit="return confirm('이 신고를 삭제하시겠습니까?');" style="display: inline;">
+                      <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="text-center py-4">접수된 상품 신고가 없습니다.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-{% if reports %}
-  <table border="1">
-    <tr>
-      <th>신고자 아이디</th>
-      <th>신고 대상</th>
-      <th>신고 사유</th>
-      <th>관리</th>
-    </tr>
-    {% for r in reports %}
-    <tr>
-      <td>{{ r.reporter }}</td>
-      <td>{{ r.target_display }}</td>
-      <td>{{ r.reason }}</td>
-      <td>
-        <form method="POST" action="{{ url_for('delete_report', report_uuid=r.uuid) }}"
-              style="display:inline;" onsubmit="return confirm('정말 삭제하시겠습니까?');">
-          <button type="submit">🗑 삭제</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-{% else %}
-  <p>📭 현재 신고 내역이 없습니다.</p>
-{% endif %}
-
-<br>
+<style>
+.card {
+  border: 1px solid rgba(0,0,0,.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.nav-tabs {
+  border-bottom: 1px solid rgba(0,0,0,.1);
+  padding: 0 1rem;
+}
+.nav-tabs .nav-link {
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 1rem;
+  color: #666;
+  font-weight: 500;
+}
+.nav-tabs .nav-link:hover {
+  border-color: transparent;
+  color: #333;
+}
+.nav-tabs .nav-link.active {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+.table td, .table th {
+  padding: 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(0,0,0,.05);
+}
+.table thead th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #666;
+}
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 4px;
+}
+</style>
 {% endblock %}

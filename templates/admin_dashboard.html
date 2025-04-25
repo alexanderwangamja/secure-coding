@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}관리자 대시보드{% endblock %}
 {% block content %}
-<h2>👥 사용자 목록</h2>
+<h2>👥 이용자 목록</h2>
 <ul>
   {% for user in users %}
     <li>{{ user.username }} | 비활성화: {{ 'O' if user.is_suspended else 'X' }}</li>
@@ -15,7 +15,7 @@
   {% endfor %}
 </ul>
 
-<h3>신고 내역</h3>
+<h3>🧾 신고 내역</h3>
 <ul>
   {% for report in reports %}
     <li>{{ report.reporter_id }} → {{ report.target_id }} ({{ report.reason }})</li>

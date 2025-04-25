@@ -2,12 +2,26 @@
 {% block title %}로그인{% endblock %}
 {% block content %}
 <div style="text-align: right; margin-bottom: 20px;">
-  <a href="{{ url_for('register') }}" style="display: inline-block; padding: 8px 16px; background-color: #34C759; color: white; text-decoration: none; border-radius: 5px;">✏️ 회원가입</a>
+  <a href="{{ url_for('register') }}" style="display: inline-block; padding: 8px 16px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">👋 회원가입</a>
 </div>
 <h2>로그인</h2>
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+      <div style="color: red; margin-bottom: 10px;">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
 <form method="post">
-  아이디: <input type="text" name="id" required><br>
-  비밀번호: <input type="password" name="password" required><br>
-  <button type="submit">로그인</button>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+  <div style="margin-bottom: 15px;">
+    <label for="id" style="display: block; margin-bottom: 5px;">아이디</label>
+    <input type="text" id="id" name="id" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+  </div>
+  <div style="margin-bottom: 15px;">
+    <label for="password" style="display: block; margin-bottom: 5px;">비밀번호</label>
+    <input type="password" id="password" name="password" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+  </div>
+  <button type="submit" style="background-color: #007AFF; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">로그인</button>
 </form>
 {% endblock %}
